@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODO 任务管理</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- ═══════════════ 页面头部 ═══════════════ -->
+    <header class="app-header">
+        <div class="container">
+            <h1 class="app-title">📋 TODO 任务管理</h1>
+            <p class="app-subtitle">高效管理你的每一天</p>
+        </div>
+    </header>
+
+    <!-- ═══════════════ 主内容区 ═══════════════ -->
+    <main class="container">
+        <!-- 工具栏 -->
+        <section class="toolbar" aria-label="工具栏">
+            <div class="toolbar-left">
+                <!-- 筛选按钮 -->
+                <div class="filter-group" role="radiogroup" aria-label="任务筛选">
+                    <button class="filter-btn active" data-filter="all" role="radio" aria-checked="true">
+                        全部 <span class="count-badge" id="count-all">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="active" role="radio" aria-checked="false">
+                        进行中 <span class="count-badge" id="count-active">0</span>
+                    </button>
+                    <button class="filter-btn" data-filter="completed" role="radio" aria-checked="false">
+                        已完成 <span class="count-badge" id="count-completed">0</span>
+                    </button>
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <!-- 排序选择 -->
+                <label for="sort-select" class="sr-only">排序方式</label>
+                <select id="sort-select" class="sort-select" aria-label="排序方式">
+                    <option value="created">按创建时间</option>
+                    <option value="priority">按优先级</option>
+                    <option value="due_date">按截止日期</option>
+                </select>
+                <!-- 新建任务按钮 -->
+                <button id="btn-add-task" class="btn btn-primary" aria-label="新建任务">
+                    + 新建任务
+                </button>
+            </div>
+        </section>
+
+        <!-- 加载指示器 -->
+        <div id="loading-indicator" class="loading-indicator hidden" role="status" aria-live="polite">
+            <div class="spinner"></div>
+            <span>加载中...</span>
+        </div>
+
+        <!-- 错误提示 -->
+        <div id="error-banner" class="error-banner hidden" role="alert">
+            <span class="error-message" id="error-message"></span>
+            <button class="error-dismiss" id="btn-error-dismiss" aria-label="关闭提示">&times;</button>
+        </div>
+
+        <!-- 任务列表 -->
+        <section id="task-list-container" class="task-list-container" aria-label="任务列表">
+            <!-- 空状态 -->
+            <div id="empty-state" class="empty-state hidden">
+                <div class="empty-icon">📝</div>
+                <h3 class="empty-title">还没有任务</h3>
+                <p class="empty-text">点击"新建任务"开始规划你的一天吧！</p>
+            </div>
+            <!-- 任务卡片列表 -->
+            <ul id="task-list" class="task-list" role="list"></ul>
+        </section>
+    </main>
+
+    <!-- ═══════════════ 任务表单模态框 ═══════════════ -->
+    <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="modal-title" class="modal-title">新建任务</h2>
+                <button class="modal-close" id="btn-modal-close" aria-label="关闭">&times;</button>
+            </div>
+            <form id="task-form" class="modal-body" novalidate>
+                <input type="hidden" id="task-id" value="">
+
+                <!-- 标题 -->
+                <div class="form-group">
+                    <label for="input-title" class="form-label">
+                        任务标题 <span class="required">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        id="input-title"
+                        class="form-input"
+                        placeholder="请输入任务标题"
+                        maxlength="200"
+                        required
+                        autocomplete="off"
+                    >
+                    <span class="form-error" id="error-title"></span>
+                </div>
+
+                <!-- 描述 -->
+                <div class="form-group">
+                    <label for="input-description" class="form-label">任务描述</label>
+                    <textarea
+                        id="input-description"
+                        class="form-input form-textarea"
+                        placeholder="添加详细描述（可选）"
+                        rows="3"
+                        maxlength="2000"
+                    ></textarea>
+                    <span class="form-error" id="error-description"></span>
+                </div>
+
+                <!-- 优先级 -->
+                <div class="form-group">
+                    <label class="form-label">优先级</label>
+                    <div class="priority-options" role="radiogroup" aria-label="优先级选择">
+                        <label class="priority-option priority-high">
+                            <input type="radio" name="priority" value="high">
+                            <span class="priority-label">🔴 高</span>
+                        </label>
+                        <label class="priority-option priority-medium">
+                            <input type="radio" name="priority" value="medium" checked>
+                            <span class="priority-label">🟡 中</span>
+                        </label>
+                        <label class="priority-option priority-low">
+                            <input type="radio" name="priority" value="low">
+                            <span class="priority-label">🟢 低</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 截止日期 -->
+                <div class="form-group">
+                    <label for="input-due-date" class="form-label">截止日期</label>
+                    <input
+                        type="date"
+                        id="input-due-date"
+                        class="form-input"
+                    >
+                    <span class="form-error" id="error-due-date"></span>
+                </div>
+
+                <!-- 按钮 -->
+                <div class="form-actions">
+                    <button type="button" id="btn-cancel" class="btn btn-secondary">取消</button>
+                    <button type="submit" id="btn-submit" class="btn btn-primary">创建任务</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ═══════════════ 删除确认对话框 ═══════════════ -->
+    <div id="confirm-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal modal-confirm">
+            <div class="modal-header">
+                <h3 id="confirm-title">确认删除</h3>
+                <button class="modal-close" id="btn-confirm-close" aria-label="关闭">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message" class="confirm-message">确定要删除此任务吗？此操作不可撤销。</p>
+                <div class="form-actions">
+                    <button type="button" id="btn-confirm-cancel" class="btn btn-secondary">取消</button>
+                    <button type="button" id="btn-confirm-delete" class="btn btn-danger">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+todo.db
+todo.db-shm
+todo.db-wal
+
+# Editor backups
+*~
+*.swp
+*.swo
