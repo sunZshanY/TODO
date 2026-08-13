@@ -1,7 +1,5 @@
+import { STORAGE_KEYS } from "./constants";
 import type { AiConfig, Task } from "./types";
-
-const TASKS_KEY = "todo_fluent_tasks";
-const AI_CONFIG_KEY = "todo_fluent_ai_config";
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
   baseUrl: "https://api.anthropic.com",
@@ -11,7 +9,7 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
 
 export function loadTasks(): Task[] {
   try {
-    const raw = localStorage.getItem(TASKS_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.tasks);
     return raw ? (JSON.parse(raw) as Task[]) : [];
   } catch {
     return [];
@@ -20,7 +18,7 @@ export function loadTasks(): Task[] {
 
 export function saveTasks(tasks: Task[]): void {
   try {
-    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+    localStorage.setItem(STORAGE_KEYS.tasks, JSON.stringify(tasks));
   } catch {
     // 忽略存储配额等异常
   }
@@ -28,7 +26,7 @@ export function saveTasks(tasks: Task[]): void {
 
 export function loadAiConfig(): AiConfig {
   try {
-    const raw = localStorage.getItem(AI_CONFIG_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.aiConfig);
     if (!raw) return { ...DEFAULT_AI_CONFIG };
     return { ...DEFAULT_AI_CONFIG, ...(JSON.parse(raw) as Partial<AiConfig>) };
   } catch {
@@ -38,7 +36,7 @@ export function loadAiConfig(): AiConfig {
 
 export function saveAiConfig(config: AiConfig): void {
   try {
-    localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(config));
+    localStorage.setItem(STORAGE_KEYS.aiConfig, JSON.stringify(config));
   } catch {
     // 忽略存储异常
   }

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Task, TaskInput } from "../types";
 import { loadTasks, saveTasks } from "../storage";
-
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
+import { uid } from "../utils/id";
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());

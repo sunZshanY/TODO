@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 import type { AiConfig, ChatMessage } from "../types";
 import { loadAiConfig, saveAiConfig } from "../storage";
-
-function uid(): string {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
+import { uid } from "../utils/id";
 
 export function useAiChat() {
   const [config, setConfig] = useState<AiConfig>(() => loadAiConfig());

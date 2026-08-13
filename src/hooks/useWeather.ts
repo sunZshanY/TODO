@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { WeatherData } from "../types";
+import { STORAGE_KEYS, WEATHER_CACHE_TTL } from "../constants";
 
-const CACHE_KEY = "todo_fluent_weather";
-const CACHE_TTL = 30 * 60 * 1000; // 30 分钟
 const POSITION_TIMEOUT = 8000;
 
 const WMO_CODES: Record<number, { text: string; icon: string }> = {
@@ -118,10 +117,10 @@ async function fetchWeather(): Promise<WeatherData | null> {
 
 function loadCache(): WeatherData | null {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.weather);
     if (!raw) return null;
     const cached = JSON.parse(raw) as WeatherData;
-    if (Date.now() - cached.updatedAt > CACHE_TTL) return null;
+    if (Date.now() - cached.updatedAt > WEATHER_CACHE_TTL) return null;
     return cached;
   } catch {
     return null;
@@ -130,7 +129,7 @@ function loadCache(): WeatherData | null {
 
 function saveCache(data: WeatherData) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEYS.weather, JSON.stringify(data));
   } catch {
     // 忽略存储异常
   }
@@ -155,7 +154,7 @@ export function useWeather() {
   }, []);
 
   useEffect(() => {
-    if (!data || Date.now() - data.updatedAt > CACHE_TTL) {
+    if (!data || Date.now() - data.updatedAt > WEATHER_CACHE_TTL) {
       refresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

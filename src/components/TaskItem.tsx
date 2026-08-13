@@ -10,6 +10,7 @@ import {
 } from "@fluentui/react-components";
 import { DeleteRegular, EditRegular } from "@fluentui/react-icons";
 import type { Priority, Task } from "../types";
+import { formatDueDate, isOverdue } from "../utils/date";
 
 const useStyles = makeStyles({
   card: {
@@ -104,17 +105,8 @@ export function TaskItem({
 }: Props) {
   const styles = useStyles();
 
-  const due = task.dueDate ? new Date(task.dueDate) : null;
-  const overdue =
-    !!due && !task.completed && due.getTime() < new Date().setHours(0, 0, 0, 0);
-
-  const formatDue = () => {
-    if (!due) return null;
-    const y = due.getFullYear();
-    const m = String(due.getMonth() + 1).padStart(2, "0");
-    const d = String(due.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  };
+  const overdue = isOverdue(task.dueDate, task.completed);
+  const due = formatDueDate(task.dueDate);
 
   return (
     <Card
@@ -161,7 +153,7 @@ export function TaskItem({
           </Badge>
           {due && (
             <Text size={200} className={overdue ? styles.overdue : undefined}>
-              📅 {formatDue()}
+              📅 {due}
               {overdue ? " ⚠️ 已逾期" : ""}
             </Text>
           )}

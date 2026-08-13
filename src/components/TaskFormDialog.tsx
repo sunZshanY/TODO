@@ -59,7 +59,7 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
               priority: task.priority,
               dueDate: task.dueDate,
             }
-          : EMPTY,
+          : { ...EMPTY },
       );
       setError("");
     }
@@ -82,7 +82,12 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
           <DialogTitle>{task ? "编辑任务" : "新建任务"}</DialogTitle>
           <DialogContent>
             <div className={styles.form}>
-              <Field label="任务标题" required validationMessage={error || undefined}>
+              <Field
+                label="任务标题"
+                required
+                validationState={error ? "error" : undefined}
+                validationMessage={error || undefined}
+              >
                 <Input
                   value={form.title}
                   maxLength={200}

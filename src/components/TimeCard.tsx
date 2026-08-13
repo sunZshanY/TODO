@@ -1,19 +1,6 @@
 import { makeStyles, Text, tokens } from "@fluentui/react-components";
 import { useClock } from "../hooks/useClock";
-
-const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-
-const pad = (n: number) => String(n).padStart(2, "0");
-
-function greeting(hour: number): string {
-  if (hour < 6) return "夜深了，注意休息";
-  if (hour < 9) return "早上好";
-  if (hour < 12) return "上午好";
-  if (hour < 14) return "中午好";
-  if (hour < 18) return "下午好";
-  if (hour < 22) return "晚上好";
-  return "夜深了，注意休息";
-}
+import { WEEKDAYS, formatClock, formatDate, greeting } from "../utils/date";
 
 const useStyles = makeStyles({
   card: {
@@ -59,10 +46,8 @@ const useStyles = makeStyles({
 export function TimeCard() {
   const now = useClock();
 
-  const hh = pad(now.getHours());
-  const mm = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
-  const date = `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日`;
+  const { hh, mm, ss } = formatClock(now);
+  const date = formatDate(now);
 
   const styles = useStyles();
 

@@ -16,20 +16,11 @@ import { TimeCard } from "./components/TimeCard";
 import { WeatherCard } from "./components/WeatherCard";
 import { TaskList } from "./components/TaskList";
 import { useTasks } from "./hooks/useTasks";
+import { loadThemeMode, saveThemeMode, toggleThemeMode } from "./theme";
 
 const AiPanel = lazy(() =>
   import("./components/AiPanel").then((m) => ({ default: m.AiPanel })),
 );
-
-const THEME_KEY = "todo_fluent_theme";
-
-function loadTheme(): boolean {
-  try {
-    return localStorage.getItem(THEME_KEY) === "dark";
-  } catch {
-    return false;
-  }
-}
 
 const useStyles = makeStyles({
   root: {
@@ -77,7 +68,7 @@ const useStyles = makeStyles({
 
 export default function App() {
   const styles = useStyles();
-  const [dark, setDark] = useState(loadTheme);
+  const [dark, setDark] = useState(() => loadThemeMode() === "dark");
   const {
     tasks,
     addTask,
@@ -90,12 +81,9 @@ export default function App() {
 
   const toggleTheme = () => {
     setDark((prev) => {
-      try {
-        localStorage.setItem(THEME_KEY, prev ? "light" : "dark");
-      } catch {
-        // 忽略存储异常
-      }
-      return !prev;
+      const next = toggleThemeMode(prev ? "dark" : "light");
+      saveThemeMode(next);
+      return next === "dark";
     });
   };
 
