@@ -10,7 +10,7 @@
 
 # 更新内容（2026-08-20）
 1. 新增云端同步：基于 GitHub Gist 实现网页版与桌面版数据互通（双向合并、自动同步、删除同步）
-2. 桌面版打包为绿色免安装 exe，通过 GitHub Actions 自动发布到 Releases
+2. ~~桌面版打包为绿色免安装 exe，通过 GitHub Actions 自动发布到 Releases~~  (暂未发布exe 现版本为zip压缩为主)
 3. 部署改用 GitHub Actions 自动构建发布到 GitHub Pages
 
 ### 云端同步使用说明
