@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AiConfig, AiConversation, ChatMessage } from "../types";
+import type { AiConfig, AiConversation, ChatMessage, Task } from "../types";
 import {
   loadAiConfig,
   loadAiConversations,
@@ -8,6 +8,7 @@ import {
 } from "../storage";
 import { AI_MAX_CONVERSATIONS } from "../constants";
 import { uid } from "../utils/id";
+import { formatDueDate } from "../utils/date";
 
 declare global {
   interface Window {
@@ -43,7 +44,24 @@ function detectFormat(baseUrl: string): ApiFormat {
   return "openai";
 }
 
-function buildRequest(config: AiConfig, history: ChatMessage[]): RequestPlan {
+function buildTaskContext(tasks: Task[]): string {
+  if (tasks.length === 0) return "";
+  const lines = tasks.slice(0, 50).map((t, i) => {
+    const status = t.completed ? "已完成" : "未完成";
+    const due = t.dueDate ? `，截止 ${formatDueDate(t.dueDate)}` : "";
+    const desc = t.description ? `，备注：${t.description}` : "";
+    return `${i + 1}. [${status}] ${t.title}（${t.priority}优先级${due}）${desc}`;
+  });
+  return `以下是用户当前的待办计划（共 ${tasks.length} 项，仅列出前 50 项）：\n${lines.join(
+    "\n",
+  )}\n请基于这些待办信息回答用户的问题。`;
+}
+
+function buildRequest(
+  config: AiConfig,
+  history: ChatMessage[],
+  system?: string,
+): RequestPlan {
   const base = normalizeBaseUrl(config.baseUrl);
   const format: ApiFormat =
     config.apiFormat === "auto" ? detectFormat(base) : config.apiFormat;
@@ -59,7 +77,12 @@ function buildRequest(config: AiConfig, history: ChatMessage[]): RequestPlan {
         "x-api-key": config.apiKey,
         "anthropic-version": "2023-06-01",
       },
-      body: { model: config.model, max_tokens: 1024, messages },
+      body: {
+        model: config.model,
+        max_tokens: 1024,
+        messages,
+        ...(system ? { system } : {}),
+      },
     };
   }
 
@@ -75,7 +98,13 @@ function buildRequest(config: AiConfig, history: ChatMessage[]): RequestPlan {
       "content-type": "application/json",
       Authorization: `Bearer ${config.apiKey}`,
     },
-    body: { model: config.model, max_tokens: 1024, messages },
+    body: {
+      model: config.model,
+      max_tokens: 1024,
+      messages: system
+        ? [{ role: "system", content: system }, ...messages]
+        : messages,
+    },
   };
 }
 
@@ -121,7 +150,7 @@ function formatLabel(format: ApiFormat): string {
   return format === "anthropic" ? "Anthropic 格式" : "OpenAI 兼容格式";
 }
 
-export function useAiChat() {
+export function useAiChat(tasks: Task[] = []) {
   const [config, setConfig] = useState<AiConfig>(() => loadAiConfig());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -216,7 +245,8 @@ export function useAiChat() {
 
     setLoading(true);
     try {
-      const plan = buildRequest(config, history);
+      const system = buildTaskContext(tasks);
+      const plan = buildRequest(config, history, system);
       const res = await doRequest(plan);
 
       if (!res.ok) {
@@ -233,7 +263,7 @@ export function useAiChat() {
       ]);
     } catch (err) {
       if (err instanceof TypeError) {
-        const plan = buildRequest(config, history);
+        const plan = buildRequest(config, history, buildTaskContext(tasks));
         setError(
           `网络错误：无法连接到 ${plan.url}（${formatLabel(plan.format)}）。` +
             (plan.format === "anthropic"
@@ -246,7 +276,7 @@ export function useAiChat() {
     } finally {
       setLoading(false);
     }
-  }, [config, input, loading, messages]);
+  }, [config, input, loading, messages, tasks]);
 
   const testConnection = useCallback(async () => {
     if (!config.baseUrl) return "请先填写服务地址";

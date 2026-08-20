@@ -29,7 +29,7 @@ import {
   SettingsRegular,
 } from "@fluentui/react-icons";
 import { useAiChat } from "../hooks/useAiChat";
-import type { AiApiFormat } from "../types";
+import type { AiApiFormat, Task } from "../types";
 import { timeAgo } from "../utils/date";
 
 const FORMAT_OPTIONS: { key: AiApiFormat; label: string }[] = [
@@ -142,7 +142,7 @@ const useStyles = makeStyles({
   },
 });
 
-export function AiPanel() {
+export function AiPanel({ tasks }: { tasks: Task[] }) {
   const styles = useStyles();
   const {
     config,
@@ -160,7 +160,7 @@ export function AiPanel() {
     setError,
     send,
     testConnection,
-  } = useAiChat();
+  } = useAiChat(tasks);
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [baseUrl, setBaseUrl] = useState(config.baseUrl);

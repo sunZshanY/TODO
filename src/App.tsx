@@ -177,7 +177,7 @@ export default function App() {
           <TimeCard />
           <WeatherCard />
           <Suspense fallback={<div className={styles.aiFallback}>AI 助手加载中...</div>}>
-            <AiPanel />
+            <AiPanel tasks={tasks} />
           </Suspense>
           <SyncPanel tasks={tasks} deleted={deleted} onApplySync={applySyncData} />
           <div className={styles.sidebarFooter}>
