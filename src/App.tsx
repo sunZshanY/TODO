@@ -2,6 +2,8 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import {
   Button,
   FluentProvider,
+  Tab,
+  TabList,
   Text,
   makeStyles,
   tokens,
@@ -36,6 +38,21 @@ const useStyles = makeStyles({
     display: "flex",
     height: "100vh",
     backgroundColor: tokens.colorNeutralBackground2,
+    "@media (max-width: 768px)": {
+      flexDirection: "column",
+    },
+  },
+  mobileTabBar: {
+    display: "flex",
+    alignItems: "center",
+    paddingLeft: tokens.spacingHorizontalM,
+    paddingRight: tokens.spacingHorizontalM,
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    flexShrink: 0,
+  },
+  hidden: {
+    display: "none",
   },
   sidebar: {
     display: "flex",
@@ -43,12 +60,18 @@ const useStyles = makeStyles({
     gap: tokens.spacingVerticalM,
     width: "340px",
     flexShrink: 0,
+    minHeight: 0,
     padding: tokens.spacingVerticalL,
     backgroundColor: tokens.colorNeutralBackground1,
     borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
     overflowY: "auto",
     "@media (max-width: 900px)": {
       width: "280px",
+    },
+    "@media (max-width: 768px)": {
+      width: "100%",
+      flexGrow: 1,
+      borderRight: "none",
     },
   },
   sidebarFooter: {
@@ -71,6 +94,7 @@ const useStyles = makeStyles({
   main: {
     flexGrow: 1,
     minWidth: 0,
+    minHeight: 0,
     padding: tokens.spacingVerticalXXL,
     paddingLeft: tokens.spacingVerticalXXXL,
     paddingRight: tokens.spacingVerticalXXXL,
@@ -83,10 +107,27 @@ const useStyles = makeStyles({
   },
 });
 
+type MobileTab = "tasks" | "tools";
+
+function useIsMobile(breakpoint = 768): boolean {
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia(`(max-width: ${breakpoint}px)`).matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const onChange = () => setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export default function App() {
   const styles = useStyles();
   const [mode, setMode] = useState<ThemeMode>(() => loadThemeMode());
   const [systemDark, setSystemDark] = useState(() => systemPrefersDark());
+  const isMobile = useIsMobile();
+  const [tab, setTab] = useState<MobileTab>("tasks");
   const {
     tasks,
     deleted,
@@ -117,7 +158,20 @@ export default function App() {
   return (
     <FluentProvider theme={dark ? appDarkTheme : appLightTheme}>
       <div className={styles.root}>
-        <aside className={styles.sidebar}>
+        {isMobile && (
+          <div className={styles.mobileTabBar}>
+            <TabList
+              selectedValue={tab}
+              onTabSelect={(_e, data) => setTab(data.value as MobileTab)}
+            >
+              <Tab value="tasks">任务</Tab>
+              <Tab value="tools">工具</Tab>
+            </TabList>
+          </div>
+        )}
+        <aside
+          className={isMobile && tab !== "tools" ? styles.hidden : styles.sidebar}
+        >
           <TimeCard />
           <WeatherCard />
           <Suspense fallback={<div className={styles.aiFallback}>AI 助手加载中...</div>}>
@@ -137,7 +191,9 @@ export default function App() {
           </div>
         </aside>
 
-        <main className={styles.main}>
+        <main
+          className={isMobile && tab !== "tasks" ? styles.hidden : styles.main}
+        >
           <TaskList
             tasks={tasks}
             onAdd={addTask}
