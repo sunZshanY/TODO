@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Divider,
   Dropdown,
   Field,
   Input,
@@ -20,6 +21,7 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import {
+  AddRegular,
   BotRegular,
   DeleteRegular,
   DismissRegular,
@@ -28,6 +30,7 @@ import {
 } from "@fluentui/react-icons";
 import { useAiChat } from "../hooks/useAiChat";
 import type { AiApiFormat } from "../types";
+import { timeAgo } from "../utils/date";
 
 const FORMAT_OPTIONS: { key: AiApiFormat; label: string }[] = [
   { key: "auto", label: "自动识别" },
@@ -116,6 +119,27 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: tokens.spacingVerticalM,
   },
+  historyList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalXXS,
+    maxHeight: "180px",
+    overflowY: "auto",
+  },
+  historyItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalXS,
+    minWidth: 0,
+  },
+  historyTitle: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
 });
 
 export function AiPanel() {
@@ -124,7 +148,11 @@ export function AiPanel() {
     config,
     saveConfig,
     messages,
-    clearChat,
+    conversations,
+    newConversation,
+    loadConversation,
+    deleteConversation,
+    deleteAllConversations,
     input,
     setInput,
     loading,
@@ -189,10 +217,10 @@ export function AiPanel() {
           <Button
             appearance="subtle"
             size="small"
-            icon={<DeleteRegular />}
-            title="清空对话"
-            aria-label="清空对话"
-            onClick={clearChat}
+            icon={<AddRegular />}
+            title="新对话"
+            aria-label="新对话"
+            onClick={newConversation}
           />
           <Button
             appearance="subtle"
@@ -322,6 +350,49 @@ export function AiPanel() {
                   {testing ? "测试中..." : "测试连接"}
                 </Button>
                 {testResult && <Text size={200}>{testResult}</Text>}
+                <Divider />
+                <Text weight="semibold">历史对话（{conversations.length}）</Text>
+                {conversations.length === 0 ? (
+                  <Text size={200}>暂无历史对话</Text>
+                ) : (
+                  <div className={styles.historyList}>
+                    {conversations.map((c) => (
+                      <div key={c.id} className={styles.historyItem}>
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          className={styles.historyTitle}
+                          title={c.title}
+                          onClick={() => {
+                            loadConversation(c.id);
+                            setSettingsOpen(false);
+                          }}
+                        >
+                          {c.title}
+                        </Button>
+                        <Text size={100}>{timeAgo(c.updatedAt)}</Text>
+                        <Button
+                          appearance="subtle"
+                          size="small"
+                          icon={<DeleteRegular />}
+                          aria-label="删除该对话"
+                          title="删除该对话"
+                          onClick={() => deleteConversation(c.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {conversations.length > 0 && (
+                  <Button
+                    appearance="secondary"
+                    size="small"
+                    icon={<DeleteRegular />}
+                    onClick={deleteAllConversations}
+                  >
+                    删除全部历史
+                  </Button>
+                )}
               </div>
             </DialogContent>
             <DialogActions>

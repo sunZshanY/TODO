@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from "./constants";
-import type { AiConfig, DeletedTask, SyncConfig, Task } from "./types";
+import type { AiConfig, AiConversation, DeletedTask, SyncConfig, Task } from "./types";
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
   baseUrl: "https://api.deepseek.com",
@@ -38,6 +38,23 @@ export function loadAiConfig(): AiConfig {
 export function saveAiConfig(config: AiConfig): void {
   try {
     localStorage.setItem(STORAGE_KEYS.aiConfig, JSON.stringify(config));
+  } catch {
+    // 忽略存储异常
+  }
+}
+
+export function loadAiConversations(): AiConversation[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.aiConversations);
+    return raw ? (JSON.parse(raw) as AiConversation[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAiConversations(list: AiConversation[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.aiConversations, JSON.stringify(list));
   } catch {
     // 忽略存储异常
   }

@@ -4,8 +4,11 @@ export const STORAGE_KEYS = {
   deleted: "todo_fluent_deleted",
   syncConfig: "todo_fluent_sync_config",
   aiConfig: "todo_fluent_ai_config",
+  aiConversations: "todo_fluent_ai_conversations",
   weather: "todo_fluent_weather",
 } as const;
+
+export const AI_MAX_CONVERSATIONS = 50;
 
 export const WEATHER_CACHE_TTL = 30 * 60 * 1000; // 30 分钟
 

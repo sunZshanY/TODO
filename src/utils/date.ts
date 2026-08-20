@@ -34,6 +34,20 @@ export function formatDate(now: Date): string {
   return `${now.getFullYear()}年${pad(now.getMonth() + 1)}月${pad(now.getDate())}日`;
 }
 
+/** 将时间戳格式化为相对时间（xx 分钟前 / xx 小时前 / xx 天前 / 日期） */
+export function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "刚刚";
+  if (m < 60) return `${m} 分钟前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小时前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} 天前`;
+  const dt = new Date(ts);
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+}
+
 /** 将 ISO 日期字符串格式化为 yyyy-MM-dd */
 export function formatDueDate(iso: string | null): string | null {
   if (!iso) return null;

@@ -1,6 +1,12 @@
-import { useCallback, useState } from "react";
-import type { AiConfig, ChatMessage } from "../types";
-import { loadAiConfig, saveAiConfig } from "../storage";
+import { useCallback, useEffect, useState } from "react";
+import type { AiConfig, AiConversation, ChatMessage } from "../types";
+import {
+  loadAiConfig,
+  loadAiConversations,
+  saveAiConfig,
+  saveAiConversations,
+} from "../storage";
+import { AI_MAX_CONVERSATIONS } from "../constants";
 import { uid } from "../utils/id";
 
 declare global {
@@ -121,15 +127,76 @@ export function useAiChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<AiConversation[]>(() =>
+    loadAiConversations(),
+  );
+  const [conversationId, setConversationId] = useState<string>(() => uid());
 
   const saveConfig = useCallback((cfg: AiConfig) => {
     setConfig(cfg);
     saveAiConfig(cfg);
   }, []);
 
-  const clearChat = useCallback(() => {
+  const upsertConversation = useCallback(
+    (id: string, msgs: ChatMessage[]) => {
+      setConversations((prev) => {
+        const firstUser = msgs.find((m) => m.role === "user")?.content ?? "";
+        const title = firstUser.slice(0, 30) || "空对话";
+        const now = Date.now();
+        const existing = prev.find((c) => c.id === id);
+        const next = existing
+          ? prev.map((c) =>
+              c.id === id ? { ...c, messages: msgs, title, updatedAt: now } : c,
+            )
+          : [{ id, title, createdAt: now, updatedAt: now, messages: msgs }, ...prev];
+        const trimmed = next.slice(0, AI_MAX_CONVERSATIONS);
+        saveAiConversations(trimmed);
+        return trimmed;
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      upsertConversation(conversationId, messages);
+    }
+  }, [messages, conversationId, upsertConversation]);
+
+  const newConversation = useCallback(() => {
     setMessages([]);
+    setInput("");
     setError(null);
+    setConversationId(uid());
+  }, []);
+
+  const loadConversation = useCallback(
+    (id: string) => {
+      const c = conversations.find((x) => x.id === id);
+      if (c) {
+        setMessages(c.messages);
+        setConversationId(id);
+        setError(null);
+      }
+    },
+    [conversations],
+  );
+
+  const deleteConversation = useCallback((id: string) => {
+    setConversations((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      saveAiConversations(next);
+      return next;
+    });
+  }, []);
+
+  const deleteAllConversations = useCallback(() => {
+    setConversations(() => {
+      saveAiConversations([]);
+      return [];
+    });
+    setMessages([]);
+    setConversationId(uid());
   }, []);
 
   const send = useCallback(async () => {
@@ -204,5 +271,21 @@ export function useAiChat() {
     }
   }, [config]);
 
-  return { config, saveConfig, messages, clearChat, input, setInput, loading, error, setError, send, testConnection };
+  return {
+    config,
+    saveConfig,
+    messages,
+    conversations,
+    newConversation,
+    loadConversation,
+    deleteConversation,
+    deleteAllConversations,
+    input,
+    setInput,
+    loading,
+    error,
+    setError,
+    send,
+    testConnection,
+  };
 }

@@ -53,6 +53,14 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface AiConversation {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+}
+
 export interface WeatherData {
   temperature: number;
   apparentTemperature: number;
