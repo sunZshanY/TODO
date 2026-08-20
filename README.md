@@ -2,6 +2,10 @@
 
 公开时间:2026-08-11
 
+<p font color="#FF000" font-size:20px align="center">此版本为测试版本</p>
+
+---
+
 在线地址: https://sunZshanY.github.io/TODO/ & https://omia.pages.dev
 
 桌面版下载: https://github.com/sunZshanY/TODO/releases/latest （TodoFluent-win32-x64.zip，解压后运行 TodoFluent.exe）
