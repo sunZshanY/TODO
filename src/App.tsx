@@ -72,6 +72,8 @@ const useStyles = makeStyles({
       width: "100%",
       flexGrow: 1,
       borderRight: "none",
+      padding: tokens.spacingVerticalM,
+      gap: tokens.spacingVerticalM,
     },
   },
   sidebarFooter: {

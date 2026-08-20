@@ -43,10 +43,17 @@ const useStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     gap: tokens.spacingHorizontalM,
+    "@media (max-width: 640px)": {
+      flexWrap: "wrap",
+      rowGap: tokens.spacingVerticalXS,
+    },
   },
   counts: {
     display: "flex",
     gap: tokens.spacingHorizontalXS,
+    "@media (max-width: 640px)": {
+      display: "none",
+    },
   },
   headerActions: {
     display: "flex",
@@ -59,10 +66,17 @@ const useStyles = makeStyles({
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
     flexWrap: "wrap",
+    "@media (max-width: 640px)": {
+      rowGap: tokens.spacingVerticalXS,
+    },
   },
   search: {
     flexGrow: 1,
     minWidth: "200px",
+    "@media (max-width: 640px)": {
+      minWidth: "100%",
+      flexGrow: 0,
+    },
   },
   sortSelect: {
     minWidth: "140px",
