@@ -23,7 +23,10 @@ interface RequestPlan {
 }
 
 function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "");
+  return url
+    .trim()
+    .replace(/\/+$/, "")
+    .replace("platform.deepseek.com", "api.deepseek.com");
 }
 
 function detectFormat(baseUrl: string): ApiFormat {

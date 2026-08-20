@@ -309,8 +309,9 @@ export function AiPanel() {
                   </Dropdown>
                 </Field>
                 <Text size={200}>
-                  自动识别：地址含 anthropic 用 Anthropic 格式，否则用 OpenAI
-                  兼容格式。代理/中转站通常选 OpenAI 兼容格式。
+                  DeepSeek 地址请填 https://api.deepseek.com（不是
+                  platform.deepseek.com 控制台）。自动识别：地址含 anthropic
+                  用 Anthropic 格式，否则用 OpenAI 兼容格式。
                 </Text>
                 <Button
                   appearance="secondary"
