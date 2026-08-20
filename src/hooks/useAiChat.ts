@@ -184,6 +184,9 @@ export function useAiChat() {
   const testConnection = useCallback(async () => {
     if (!config.baseUrl) return "请先填写服务地址";
     if (!config.apiKey) return "请先填写 API Key";
+    if (!/^sk-/i.test(config.apiKey)) {
+      return "API Key 格式不正确：DeepSeek 的 Key 以 sk- 开头。请在 https://platform.deepseek.com/api_keys 创建并复制，不要把网址/邮箱粘进来。";
+    }
     const plan = buildRequest(config, [
       { id: "", role: "user", content: "ping" },
     ]);
