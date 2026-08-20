@@ -12,6 +12,7 @@ import {
 } from "@fluentui/react-icons";
 import { TimeCard } from "./components/TimeCard";
 import { WeatherCard } from "./components/WeatherCard";
+import { SyncPanel } from "./components/SyncPanel";
 import { TaskList } from "./components/TaskList";
 import { useTasks } from "./hooks/useTasks";
 import {
@@ -88,12 +89,14 @@ export default function App() {
   const [systemDark, setSystemDark] = useState(() => systemPrefersDark());
   const {
     tasks,
+    deleted,
     addTask,
     updateTask,
     toggleTask,
     deleteTask,
     moveTask,
     importTasks,
+    applySyncData,
   } = useTasks();
 
   useEffect(
@@ -120,6 +123,7 @@ export default function App() {
           <Suspense fallback={<div className={styles.aiFallback}>AI 助手加载中...</div>}>
             <AiPanel />
           </Suspense>
+          <SyncPanel tasks={tasks} deleted={deleted} onApplySync={applySyncData} />
           <div className={styles.sidebarFooter}>
             <Button
               appearance="subtle"

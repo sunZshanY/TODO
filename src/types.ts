@@ -17,6 +17,27 @@ export type Filter = "all" | "active" | "completed";
 
 export type SortKey = "custom" | "created" | "priority" | "due_date";
 
+export interface DeletedTask {
+  id: string;
+  deletedAt: string;
+}
+
+export interface SyncData {
+  version: number;
+  updatedAt: string;
+  tasks: Task[];
+  deleted: DeletedTask[];
+}
+
+export interface SyncConfig {
+  token: string;
+  gistId: string;
+  autoSync: boolean;
+  intervalMinutes: number;
+}
+
+export type SyncStatus = "idle" | "syncing" | "success" | "error";
+
 export interface AiConfig {
   baseUrl: string;
   apiKey: string;

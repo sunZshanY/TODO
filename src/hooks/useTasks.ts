@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Task, TaskInput } from "../types";
-import { loadTasks, saveTasks } from "../storage";
+import type { DeletedTask, SyncData, Task, TaskInput } from "../types";
+import { loadDeletedTasks, loadTasks, saveDeletedTasks, saveTasks } from "../storage";
 import { uid } from "../utils/id";
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [deleted, setDeleted] = useState<DeletedTask[]>(() => loadDeletedTasks());
 
   useEffect(() => {
     saveTasks(tasks);
   }, [tasks]);
+
+  useEffect(() => {
+    saveDeletedTasks(deleted);
+  }, [deleted]);
 
   const addTask = useCallback((input: TaskInput) => {
     const now = new Date().toISOString();
@@ -41,7 +46,9 @@ export function useTasks() {
   }, []);
 
   const deleteTask = useCallback((id: string) => {
+    const now = new Date().toISOString();
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setDeleted((prev) => [...prev, { id, deletedAt: now }]);
   }, []);
 
   const moveTask = useCallback((fromId: string, toId: string) => {
@@ -58,7 +65,23 @@ export function useTasks() {
 
   const importTasks = useCallback((incoming: Task[]) => {
     setTasks(incoming);
+    setDeleted([]);
   }, []);
 
-  return { tasks, addTask, updateTask, toggleTask, deleteTask, moveTask, importTasks };
+  const applySyncData = useCallback((data: SyncData) => {
+    setTasks(data.tasks);
+    setDeleted(data.deleted);
+  }, []);
+
+  return {
+    tasks,
+    deleted,
+    addTask,
+    updateTask,
+    toggleTask,
+    deleteTask,
+    moveTask,
+    importTasks,
+    applySyncData,
+  };
 }

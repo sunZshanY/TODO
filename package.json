@@ -8,11 +8,15 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "electron:dev": "npm run build && electron .",
+    "package:win": "npm run build && electron-packager . TodoFluent --platform=win32 --arch=x64 --out=release --overwrite --asar --prune --ignore=\"^/(release|src|node_modules|.git|.github|.wrangler|dist-ssr)\"",
+    "zip:win": "pwsh -NoProfile -Command \"Compress-Archive -Path 'release/TodoFluent-win32-x64/*' -DestinationPath 'release/TodoFluent-win32-x64.zip' -Force\""
   },
   "dependencies": {
     "@fluentui/react-components": "^9.74.5",
     "@fluentui/react-icons": "^2.0.316",
+    "electron": "^43.4.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -20,8 +24,22 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
+    "electron-packager": "^17.1.2",
     "gh-pages": "^6.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.1"
-  }
+  },
+  "description": "公开时间:2026-08-11",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sunZshanY/TODO.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sunZshanY/TODO/issues"
+  },
+  "homepage": "https://github.com/sunZshanY/TODO#readme"
 }

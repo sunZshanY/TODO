@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from "./constants";
-import type { AiConfig, Task } from "./types";
+import type { AiConfig, DeletedTask, SyncConfig, Task } from "./types";
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
   baseUrl: "https://api.anthropic.com",
@@ -54,4 +54,46 @@ export function parseTasks(raw: string): Task[] {
       typeof (t as Task).id === "string" &&
       typeof (t as Task).title === "string",
   );
+}
+
+export function loadDeletedTasks(): DeletedTask[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.deleted);
+    return raw ? (JSON.parse(raw) as DeletedTask[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDeletedTasks(deleted: DeletedTask[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.deleted, JSON.stringify(deleted));
+  } catch {
+    // 忽略存储异常
+  }
+}
+
+export const DEFAULT_SYNC_CONFIG: SyncConfig = {
+  token: "",
+  gistId: "",
+  autoSync: false,
+  intervalMinutes: 5,
+};
+
+export function loadSyncConfig(): SyncConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.syncConfig);
+    if (!raw) return { ...DEFAULT_SYNC_CONFIG };
+    return { ...DEFAULT_SYNC_CONFIG, ...(JSON.parse(raw) as Partial<SyncConfig>) };
+  } catch {
+    return { ...DEFAULT_SYNC_CONFIG };
+  }
+}
+
+export function saveSyncConfig(config: SyncConfig): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.syncConfig, JSON.stringify(config));
+  } catch {
+    // 忽略存储异常
+  }
 }
