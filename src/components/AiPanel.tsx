@@ -131,6 +131,7 @@ export function AiPanel() {
     error,
     setError,
     send,
+    testConnection,
   } = useAiChat();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -138,6 +139,8 @@ export function AiPanel() {
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [model, setModel] = useState(config.model);
   const [apiFormat, setApiFormat] = useState<AiApiFormat>(config.apiFormat);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const openSettings = () => {
     setBaseUrl(config.baseUrl);
@@ -155,6 +158,20 @@ export function AiPanel() {
       apiFormat,
     });
     setSettingsOpen(false);
+  };
+
+  const handleTest = async () => {
+    saveConfig({
+      baseUrl: baseUrl.trim() || config.baseUrl,
+      apiKey: apiKey.trim(),
+      model: model.trim() || config.model,
+      apiFormat,
+    });
+    setTesting(true);
+    setTestResult(null);
+    const result = await testConnection();
+    setTestResult(result);
+    setTesting(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -295,6 +312,15 @@ export function AiPanel() {
                   自动识别：地址含 anthropic 用 Anthropic 格式，否则用 OpenAI
                   兼容格式。代理/中转站通常选 OpenAI 兼容格式。
                 </Text>
+                <Button
+                  appearance="secondary"
+                  icon={<SettingsRegular />}
+                  disabled={testing}
+                  onClick={handleTest}
+                >
+                  {testing ? "测试中..." : "测试连接"}
+                </Button>
+                {testResult && <Text size={200}>{testResult}</Text>}
               </div>
             </DialogContent>
             <DialogActions>

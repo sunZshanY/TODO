@@ -86,6 +86,32 @@ function extractAnswer(data: unknown, format: ApiFormat): string {
     : "";
 }
 
+async function doRequest(
+  plan: RequestPlan,
+): Promise<{ ok: boolean; status: number; body: string }> {
+  if (typeof window.aiRequest === "function") {
+    const res = await window.aiRequest(plan);
+    return { ok: res.ok, status: res.status, body: res.text };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(plan.url, {
+      method: "POST",
+      headers: plan.headers,
+      body: JSON.stringify(plan.body),
+      signal: controller.signal,
+    });
+    return { ok: res.ok, status: res.status, body: await res.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function formatLabel(format: ApiFormat): string {
+  return format === "anthropic" ? "Anthropic 格式" : "OpenAI 兼容格式";
+}
+
 export function useAiChat() {
   const [config, setConfig] = useState<AiConfig>(() => loadAiConfig());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -121,39 +147,14 @@ export function useAiChat() {
     setLoading(true);
     try {
       const plan = buildRequest(config, history);
-      let ok: boolean;
-      let status: number;
-      let body: string;
+      const res = await doRequest(plan);
 
-      if (typeof window.aiRequest === "function") {
-        const res = await window.aiRequest(plan);
-        ok = res.ok;
-        status = res.status;
-        body = res.text;
-      } else {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-        try {
-          const res = await fetch(plan.url, {
-            method: "POST",
-            headers: plan.headers,
-            body: JSON.stringify(plan.body),
-            signal: controller.signal,
-          });
-          ok = res.ok;
-          status = res.status;
-          body = await res.text();
-        } finally {
-          clearTimeout(timer);
-        }
-      }
-
-      if (!ok) {
-        throw new Error(`请求失败（${status}）${body.slice(0, 200)}`);
+      if (!res.ok) {
+        throw new Error(`请求失败（${res.status}）${res.body.slice(0, 200)}`);
       }
 
       const answer =
-        extractAnswer(JSON.parse(body) as unknown, plan.format) ||
+        extractAnswer(JSON.parse(res.body) as unknown, plan.format) ||
         "（模型未返回内容）";
 
       setMessages((prev) => [
@@ -162,8 +163,12 @@ export function useAiChat() {
       ]);
     } catch (err) {
       if (err instanceof TypeError) {
+        const plan = buildRequest(config, history);
         setError(
-          "网络错误：无法连接到 AI 服务。请检查网络、服务地址是否正确，或该服务是否允许浏览器直接调用（可改选 OpenAI 兼容格式）。",
+          `网络错误：无法连接到 ${plan.url}（${formatLabel(plan.format)}）。` +
+            (plan.format === "anthropic"
+              ? "Anthropic 官方接口禁止浏览器直连，请改用支持 CORS 的中转服务，或选择 OpenAI 兼容格式。"
+              : "请检查网络、服务地址是否正确，或确认该服务允许浏览器直接调用。"),
         );
       } else {
         setError(err instanceof Error ? err.message : "请求出错，请稍后重试");
@@ -173,5 +178,25 @@ export function useAiChat() {
     }
   }, [config, input, loading, messages]);
 
-  return { config, saveConfig, messages, clearChat, input, setInput, loading, error, setError, send };
+  const testConnection = useCallback(async () => {
+    if (!config.baseUrl) return "请先填写服务地址";
+    if (!config.apiKey) return "请先填写 API Key";
+    const plan = buildRequest(config, [
+      { id: "", role: "user", content: "ping" },
+    ]);
+    const label = `${plan.url}（${formatLabel(plan.format)}）`;
+    try {
+      const res = await doRequest(plan);
+      if (res.ok) return `连接成功：${label}`;
+      return `连接失败（${res.status}）：${label} ${res.body.slice(0, 120)}`;
+    } catch (err) {
+      return err instanceof TypeError
+        ? `网络错误（可能是 CORS 或网络不通）：${label}`
+        : `连接失败：${label} ${
+            err instanceof Error ? err.message : String(err)
+          }`;
+    }
+  }, [config]);
+
+  return { config, saveConfig, messages, clearChat, input, setInput, loading, error, setError, send, testConnection };
 }
