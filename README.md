@@ -2,7 +2,7 @@
 
 公开时间:2026-08-11
 
-<p font color="#FF000" font-size:20px align="center">此版本为测试版本</p>
+<p font color="#FF000" font-size:20px align="center">此版本为测试版本的第一版本,如有错误可指出，谢谢</p>
 
 ---
 
