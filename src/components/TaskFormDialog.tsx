@@ -76,7 +76,12 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(_e, d) => d.open ? undefined : onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(_e, d) => {
+        if (!d.open) onClose();
+      }}
+    >
       <DialogSurface>
         <DialogBody>
           <DialogTitle>{task ? "编辑任务" : "新建任务"}</DialogTitle>

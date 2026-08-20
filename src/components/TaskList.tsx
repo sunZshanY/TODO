@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -17,6 +17,7 @@ import {
   Text,
   ToggleButton,
   Tooltip,
+  shorthands,
   tokens,
 } from "@fluentui/react-components";
 import {
@@ -28,7 +29,7 @@ import {
 import { TaskItem } from "./TaskItem";
 import { TaskFormDialog } from "./TaskFormDialog";
 import { parseTasks } from "../storage";
-import type { Filter, SortKey, Task, TaskInput } from "../types";
+import type { Filter, Priority, SortKey, Task, TaskInput } from "../types";
 
 const useStyles = makeStyles({
   root: {
@@ -79,6 +80,19 @@ const useStyles = makeStyles({
     paddingTop: "120px",
     color: tokens.colorNeutralForeground3,
   },
+  danger: {
+    backgroundColor: tokens.colorStatusDangerBackground1,
+    ...shorthands.borderColor(tokens.colorStatusDangerBackground1),
+    color: tokens.colorStatusDangerForeground1,
+    ":hover": {
+      backgroundColor: tokens.colorStatusDangerBackground2,
+      ...shorthands.borderColor(tokens.colorStatusDangerBackground2),
+    },
+    ":active": {
+      backgroundColor: tokens.colorStatusDangerBackground3,
+      ...shorthands.borderColor(tokens.colorStatusDangerBackground3),
+    },
+  },
 });
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -87,7 +101,7 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "completed", label: "已完成" },
 ];
 
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 
 interface Props {
   tasks: Task[];
@@ -119,6 +133,7 @@ export function TaskList({
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const dragIdRef = useRef<string | null>(null);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -168,11 +183,6 @@ export function TaskList({
     setFormOpen(true);
   };
 
-  const openEdit = (task: Task) => {
-    setEditing(task);
-    setFormOpen(true);
-  };
-
   const handleSave = (input: TaskInput) => {
     if (editing) {
       onUpdate(editing.id, input);
@@ -188,22 +198,48 @@ export function TaskList({
     }
   };
 
-  const startDelete = (id: string) => {
-    const target = tasks.find((t) => t.id === id);
-    if (target) setDeleting(target);
-  };
+  const handleToggleItem = useCallback((id: string) => onToggle(id), [onToggle]);
 
-  const clearDrag = () => {
+  const handleEditItem = useCallback((task: Task) => {
+    setEditing(task);
+    setFormOpen(true);
+  }, []);
+
+  const handleDeleteItem = useCallback(
+    (id: string) => {
+      const target = tasks.find((t) => t.id === id);
+      if (target) setDeleting(target);
+    },
+    [tasks],
+  );
+
+  const handleDragStart = useCallback((id: string) => {
+    dragIdRef.current = id;
+    setDragId(id);
+  }, []);
+
+  const handleDragOver = useCallback((id: string) => {
+    setDragOverId((prev) => (prev === id ? prev : id));
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    dragIdRef.current = null;
     setDragId(null);
     setDragOverId(null);
-  };
+  }, []);
 
-  const handleDrop = (targetId: string) => {
-    if (dragId && dragId !== targetId) {
-      onMove(dragId, targetId);
-    }
-    clearDrag();
-  };
+  const handleDrop = useCallback(
+    (targetId: string) => {
+      const from = dragIdRef.current;
+      if (from && from !== targetId) {
+        onMove(from, targetId);
+      }
+      dragIdRef.current = null;
+      setDragId(null);
+      setDragOverId(null);
+    },
+    [onMove],
+  );
 
   const handleExport = () => {
     const blob = new Blob([JSON.stringify(tasks, null, 2)], {
@@ -353,13 +389,13 @@ export function TaskList({
               task={task}
               dragging={dragId === task.id}
               dragOver={dragOverId === task.id && dragId !== task.id}
-              onToggle={onToggle}
-              onEdit={openEdit}
-              onDelete={startDelete}
-              onDragStart={() => setDragId(task.id)}
-              onDragOver={() => setDragOverId(task.id)}
-              onDragEnd={clearDrag}
-              onDrop={() => handleDrop(task.id)}
+              onToggle={handleToggleItem}
+              onEdit={handleEditItem}
+              onDelete={handleDeleteItem}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
             />
           ))}
         </div>
@@ -374,7 +410,9 @@ export function TaskList({
 
       <Dialog
         open={!!deleting}
-        onOpenChange={(_e, d) => (d.open ? undefined : setDeleting(null))}
+        onOpenChange={(_e, d) => {
+          if (!d.open) setDeleting(null);
+        }}
       >
         <DialogSurface>
           <DialogBody>
@@ -390,10 +428,7 @@ export function TaskList({
               </Button>
               <Button
                 appearance="primary"
-                style={{
-                  backgroundColor: tokens.colorStatusDangerBackground1,
-                  borderColor: tokens.colorStatusDangerBackground1,
-                }}
+                className={styles.danger}
                 onClick={handleDelete}
               >
                 确认删除

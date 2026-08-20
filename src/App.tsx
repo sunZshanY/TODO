@@ -1,12 +1,10 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import {
   Button,
   FluentProvider,
   Text,
   makeStyles,
   tokens,
-  webDarkTheme,
-  webLightTheme,
 } from "@fluentui/react-components";
 import {
   WeatherMoonRegular,
@@ -16,7 +14,17 @@ import { TimeCard } from "./components/TimeCard";
 import { WeatherCard } from "./components/WeatherCard";
 import { TaskList } from "./components/TaskList";
 import { useTasks } from "./hooks/useTasks";
-import { loadThemeMode, saveThemeMode, toggleThemeMode } from "./theme";
+import {
+  THEME_MODE_LABEL,
+  appDarkTheme,
+  appLightTheme,
+  loadThemeMode,
+  nextThemeMode,
+  saveThemeMode,
+  subscribeSystemTheme,
+  systemPrefersDark,
+  type ThemeMode,
+} from "./theme";
 
 const AiPanel = lazy(() =>
   import("./components/AiPanel").then((m) => ({ default: m.AiPanel })),
@@ -38,6 +46,9 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground1,
     borderRight: `1px solid ${tokens.colorNeutralStroke2}`,
     overflowY: "auto",
+    "@media (max-width: 900px)": {
+      width: "280px",
+    },
   },
   sidebarFooter: {
     display: "flex",
@@ -63,12 +74,18 @@ const useStyles = makeStyles({
     paddingLeft: tokens.spacingVerticalXXXL,
     paddingRight: tokens.spacingVerticalXXXL,
     overflowY: "auto",
+    "@media (max-width: 640px)": {
+      padding: tokens.spacingVerticalL,
+      paddingLeft: tokens.spacingHorizontalM,
+      paddingRight: tokens.spacingHorizontalM,
+    },
   },
 });
 
 export default function App() {
   const styles = useStyles();
-  const [dark, setDark] = useState(() => loadThemeMode() === "dark");
+  const [mode, setMode] = useState<ThemeMode>(() => loadThemeMode());
+  const [systemDark, setSystemDark] = useState(() => systemPrefersDark());
   const {
     tasks,
     addTask,
@@ -79,16 +96,23 @@ export default function App() {
     importTasks,
   } = useTasks();
 
-  const toggleTheme = () => {
-    setDark((prev) => {
-      const next = toggleThemeMode(prev ? "dark" : "light");
+  useEffect(
+    () => subscribeSystemTheme(() => setSystemDark(systemPrefersDark())),
+    [],
+  );
+
+  const dark = mode === "dark" || (mode === "system" && systemDark);
+
+  const cycleTheme = () => {
+    setMode((prev) => {
+      const next = nextThemeMode(prev);
       saveThemeMode(next);
-      return next === "dark";
+      return next;
     });
   };
 
   return (
-    <FluentProvider theme={dark ? webDarkTheme : webLightTheme}>
+    <FluentProvider theme={dark ? appDarkTheme : appLightTheme}>
       <div className={styles.root}>
         <aside className={styles.sidebar}>
           <TimeCard />
@@ -101,9 +125,9 @@ export default function App() {
               appearance="subtle"
               size="small"
               icon={dark ? <WeatherSunnyRegular /> : <WeatherMoonRegular />}
-              onClick={toggleTheme}
+              onClick={cycleTheme}
             >
-              {dark ? "浅色模式" : "深色模式"}
+              主题：{THEME_MODE_LABEL[mode]}
             </Button>
             <Text size={100}>TODO · Fluent Design</Text>
           </div>

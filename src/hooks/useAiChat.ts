@@ -24,16 +24,16 @@ export function useAiChat() {
     const text = input.trim();
     if (!text || loading) return;
 
+    if (!config.baseUrl || !config.apiKey) {
+      setError("请先在设置中配置 AI 服务地址与 API Key");
+      return;
+    }
+
     const userMsg: ChatMessage = { id: uid(), role: "user", content: text };
     const history = [...messages, userMsg];
     setMessages(history);
     setInput("");
     setError(null);
-
-    if (!config.baseUrl || !config.apiKey) {
-      setError("请先在设置中配置 AI 服务地址与 API Key");
-      return;
-    }
 
     setLoading(true);
     try {

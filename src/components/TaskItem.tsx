@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Badge,
   Button,
@@ -85,13 +86,13 @@ interface Props {
   onToggle: (id: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
-  onDragStart: () => void;
-  onDragOver: () => void;
+  onDragStart: (id: string) => void;
+  onDragOver: (id: string) => void;
   onDragEnd: () => void;
-  onDrop: () => void;
+  onDrop: (id: string) => void;
 }
 
-export function TaskItem({
+export const TaskItem = memo(function TaskItem({
   task,
   dragging,
   dragOver,
@@ -113,15 +114,15 @@ export function TaskItem({
       className={`${styles.card} ${task.completed ? styles.completed : ""} ${dragging ? styles.dragging : ""} ${dragOver ? styles.dragOver : ""}`}
       appearance="outline"
       draggable
-      onDragStart={onDragStart}
+      onDragStart={() => onDragStart(task.id)}
       onDragOver={(e) => {
         e.preventDefault();
-        handleDragOver();
+        handleDragOver(task.id);
       }}
       onDragEnd={onDragEnd}
       onDrop={(e) => {
         e.preventDefault();
-        onDrop();
+        onDrop(task.id);
       }}
     >
       <Checkbox
@@ -182,4 +183,4 @@ export function TaskItem({
       </div>
     </Card>
   );
-}
+});

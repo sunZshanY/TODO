@@ -103,6 +103,11 @@ const useStyles = makeStyles({
     alignSelf: "flex-start",
     paddingLeft: tokens.spacingHorizontalS,
   },
+  settingsForm: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalM,
+  },
 });
 
 export function AiPanel() {
@@ -234,13 +239,7 @@ export function AiPanel() {
           <DialogBody>
             <DialogTitle>AI 服务设置</DialogTitle>
             <DialogContent>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
+              <div className={styles.settingsForm}>
                 <Field label="服务地址（Base URL）">
                   <Input
                     value={baseUrl}
