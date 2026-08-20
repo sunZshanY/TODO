@@ -2,9 +2,10 @@ import { STORAGE_KEYS } from "./constants";
 import type { AiConfig, DeletedTask, SyncConfig, Task } from "./types";
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
-  baseUrl: "https://api.anthropic.com",
+  baseUrl: "https://api.deepseek.com",
   apiKey: "",
-  model: "claude-sonnet-4-20250514",
+  model: "deepseek-v4-flash",
+  apiFormat: "auto",
 };
 
 export function loadTasks(): Task[] {

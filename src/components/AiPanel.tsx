@@ -7,8 +7,10 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Dropdown,
   Field,
   Input,
+  Option,
   makeStyles,
   MessageBar,
   MessageBarActions,
@@ -25,19 +27,25 @@ import {
   SettingsRegular,
 } from "@fluentui/react-icons";
 import { useAiChat } from "../hooks/useAiChat";
+import type { AiApiFormat } from "../types";
+
+const FORMAT_OPTIONS: { key: AiApiFormat; label: string }[] = [
+  { key: "auto", label: "自动识别" },
+  { key: "anthropic", label: "Anthropic 格式" },
+  { key: "openai", label: "OpenAI 兼容格式" },
+];
 
 const useStyles = makeStyles({
   panel: {
     display: "flex",
     flexDirection: "column",
-    minHeight: 0,
+    minHeight: "200px",
     flexGrow: 1,
     backgroundColor: tokens.colorNeutralBackground1,
     borderRadius: tokens.borderRadiusMedium,
     boxShadow: tokens.shadow4,
     overflow: "hidden",
-  },
-  header: {
+  },  header: {
     display: "flex",
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
@@ -129,11 +137,13 @@ export function AiPanel() {
   const [baseUrl, setBaseUrl] = useState(config.baseUrl);
   const [apiKey, setApiKey] = useState(config.apiKey);
   const [model, setModel] = useState(config.model);
+  const [apiFormat, setApiFormat] = useState<AiApiFormat>(config.apiFormat);
 
   const openSettings = () => {
     setBaseUrl(config.baseUrl);
     setApiKey(config.apiKey);
     setModel(config.model);
+    setApiFormat(config.apiFormat);
     setSettingsOpen(true);
   };
 
@@ -142,6 +152,7 @@ export function AiPanel() {
       baseUrl: baseUrl.trim() || config.baseUrl,
       apiKey: apiKey.trim(),
       model: model.trim() || config.model,
+      apiFormat,
     });
     setSettingsOpen(false);
   };
@@ -244,7 +255,7 @@ export function AiPanel() {
                   <Input
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
-                    placeholder="https://api.anthropic.com"
+                    placeholder="https://api.deepseek.com"
                   />
                 </Field>
                 <Field label="API Key">
@@ -252,7 +263,7 @@ export function AiPanel() {
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="sk-ant-api03-..."
+                    placeholder="sk-..."
                     autoComplete="off"
                   />
                 </Field>
@@ -260,9 +271,30 @@ export function AiPanel() {
                   <Input
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
-                    placeholder="claude-sonnet-4-20250514"
+                    placeholder="claude-sonnet-4-20250514 / gpt-4o"
                   />
                 </Field>
+                <Field label="接口格式">
+                  <Dropdown
+                    value={
+                      FORMAT_OPTIONS.find((o) => o.key === apiFormat)?.label
+                    }
+                    selectedOptions={[apiFormat]}
+                    onOptionSelect={(_e, data) =>
+                      setApiFormat(data.optionValue as AiApiFormat)
+                    }
+                  >
+                    {FORMAT_OPTIONS.map((o) => (
+                      <Option key={o.key} value={o.key}>
+                        {o.label}
+                      </Option>
+                    ))}
+                  </Dropdown>
+                </Field>
+                <Text size={200}>
+                  自动识别：地址含 anthropic 用 Anthropic 格式，否则用 OpenAI
+                  兼容格式。代理/中转站通常选 OpenAI 兼容格式。
+                </Text>
               </div>
             </DialogContent>
             <DialogActions>

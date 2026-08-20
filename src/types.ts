@@ -38,10 +38,13 @@ export interface SyncConfig {
 
 export type SyncStatus = "idle" | "syncing" | "success" | "error";
 
+export type AiApiFormat = "auto" | "anthropic" | "openai";
+
 export interface AiConfig {
   baseUrl: string;
   apiKey: string;
   model: string;
+  apiFormat: AiApiFormat;
 }
 
 export interface ChatMessage {

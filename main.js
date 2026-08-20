@@ -1,5 +1,28 @@
-const { app, BrowserWindow, Menu, shell } = require("electron");
-const path = require("path");
+import { app, BrowserWindow, Menu, shell, ipcMain } from "electron";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REQUEST_TIMEOUT_MS = 120_000;
+
+ipcMain.handle("ai-request", async (_event, payload) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(payload.url, {
+      method: "POST",
+      headers: payload.headers,
+      body: JSON.stringify(payload.body),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : String(err));
+  } finally {
+    clearTimeout(timer);
+  }
+});
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -13,6 +36,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 

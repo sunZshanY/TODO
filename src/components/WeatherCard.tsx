@@ -5,48 +5,60 @@ import { useWeather } from "../hooks/useWeather";
 const useStyles = makeStyles({
   card: {
     display: "flex",
-    flexDirection: "column",
     alignItems: "center",
-    gap: tokens.spacingVerticalXXS,
-    paddingTop: tokens.spacingVerticalL,
-    paddingBottom: tokens.spacingVerticalL,
+    gap: tokens.spacingHorizontalM,
+    paddingTop: tokens.spacingVerticalS,
+    paddingBottom: tokens.spacingVerticalS,
+    paddingLeft: tokens.spacingHorizontalM,
+    paddingRight: tokens.spacingHorizontalM,
     borderRadius: tokens.borderRadiusMedium,
     backgroundImage: `linear-gradient(135deg, ${tokens.colorPaletteBlueBackground2} 0%, ${tokens.colorPaletteRoyalBlueBackground2} 100%)`,
     boxShadow: tokens.shadow4,
   },
-  header: {
+  left: {
     display: "flex",
     alignItems: "center",
     gap: tokens.spacingHorizontalXS,
-    color: "rgba(255, 255, 255, 0.7)",
+    flexShrink: 0,
   },
   icon: {
-    fontSize: "40px",
+    fontSize: "30px",
     lineHeight: 1,
   },
   temp: {
     fontVariantNumeric: "tabular-nums",
     color: "#ffffff",
   },
+  info: {
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    minWidth: 0,
+    gap: tokens.spacingVerticalXXS,
+  },
   condition: {
     color: "rgba(255, 255, 255, 0.9)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   detail: {
     display: "flex",
     gap: tokens.spacingHorizontalM,
     color: "rgba(255, 255, 255, 0.75)",
-    marginTop: tokens.spacingVerticalXXS,
+    whiteSpace: "nowrap",
   },
   city: {
     color: "rgba(255, 255, 255, 0.8)",
   },
-  error: {
-    color: "rgba(255, 255, 255, 0.7)",
-    textAlign: "center",
-  },
   refresh: {
     color: "rgba(255, 255, 255, 0.7)",
     minWidth: "auto",
+    flexShrink: 0,
+  },
+  error: {
+    color: "rgba(255, 255, 255, 0.7)",
+    textAlign: "center",
   },
 });
 
@@ -74,30 +86,32 @@ export function WeatherCard() {
         </div>
       ) : data ? (
         <>
-          <div className={styles.header}>
-            <Text size={200}>
+          <div className={styles.left}>
+            <div className={styles.icon}>{data.icon}</div>
+            <Text size={700} weight="bold" className={styles.temp}>
+              {data.temperature}°
+            </Text>
+          </div>
+          <div className={styles.info}>
+            <Text size={200} className={styles.condition}>
+              {data.conditionText} · 体感 {data.apparentTemperature}°
+            </Text>
+            <div className={styles.detail}>
+              <Text size={100}>💧 {data.humidity}%</Text>
+              <Text size={100}>🌬️ {data.windSpeed}km/h</Text>
+            </div>
+            <Text size={100} className={styles.city}>
               {data.city || "当前位置"}
             </Text>
-            <Button
-              className={styles.refresh}
-              appearance="transparent"
-              size="small"
-              icon={<ArrowSyncRegular />}
-              aria-label="刷新天气"
-              onClick={refresh}
-            />
           </div>
-          <div className={styles.icon}>{data.icon}</div>
-          <Text size={900} weight="bold" className={styles.temp}>
-            {data.temperature}°
-          </Text>
-          <Text size={300} className={styles.condition}>
-            {data.conditionText} · 体感 {data.apparentTemperature}°
-          </Text>
-          <div className={styles.detail}>
-            <Text size={100}>💧 {data.humidity}%</Text>
-            <Text size={100}>🌬️ {data.windSpeed}km/h</Text>
-          </div>
+          <Button
+            className={styles.refresh}
+            appearance="transparent"
+            size="small"
+            icon={<ArrowSyncRegular />}
+            aria-label="刷新天气"
+            onClick={refresh}
+          />
         </>
       ) : null}
     </div>
