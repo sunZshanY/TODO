@@ -135,9 +135,9 @@ export function MdImportDialog({
           <DialogContent>
             <div className={styles.form}>
               <Text size={200}>
-                支持 `## 标题` 分组、`- [ ]` / `- [x]` 复选框，以及内联标记
-                `[高][中][低]` 优先级、`@2026-08-21` 日期、`/说明/`
-                描述。含日期的分组自动识别为「日程表」类型。
+                支持 `## 标题` 分组、`- [ ]` / `- [x]` 复选框、表格（每行末列作标题、
+                其余列作备注），以及内联标记 `[高][中][低]` 优先级、`@2026-08-21`
+                日期、`/说明/` 描述。含日期/时段的组自动识别为「日程表」类型。
               </Text>
               <Textarea
                 className={styles.editor}
@@ -215,7 +215,7 @@ export function MdImportDialog({
                 !aiLoading && (
                   <MessageBar intent="info">
                     <MessageBarBody>
-                      未解析到任务。请确认使用 `- [ ] 任务内容` 的复选框语法。
+                      未解析到任务。请确认使用 `- [ ] 任务内容` 复选框或 `| 表格 |` 结构。
                     </MessageBarBody>
                   </MessageBar>
                 )
