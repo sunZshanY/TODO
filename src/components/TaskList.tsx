@@ -25,11 +25,20 @@ import {
   ArrowDownloadRegular,
   ArrowUploadRegular,
   DismissRegular,
+  DocumentTextRegular,
 } from "@fluentui/react-icons";
 import { TaskItem } from "./TaskItem";
 import { TaskFormDialog } from "./TaskFormDialog";
+import { MdImportDialog } from "./MdImportDialog";
 import { parseTasks } from "../storage";
-import type { Filter, Priority, SortKey, Task, TaskInput } from "../types";
+import type {
+  Filter,
+  Priority,
+  SortKey,
+  Task,
+  TaskInput,
+  TaskSeed,
+} from "../types";
 
 const useStyles = makeStyles({
   root: {
@@ -120,6 +129,7 @@ const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
 interface Props {
   tasks: Task[];
   onAdd: (input: TaskInput) => void;
+  onAddMany: (seeds: TaskSeed[]) => void;
   onUpdate: (id: string, input: TaskInput) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
@@ -130,6 +140,7 @@ interface Props {
 export function TaskList({
   tasks,
   onAdd,
+  onAddMany,
   onUpdate,
   onToggle,
   onDelete,
@@ -140,14 +151,33 @@ export function TaskList({
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<SortKey>("custom");
   const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [mdOpen, setMdOpen] = useState(false);
+  const [mdText, setMdText] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const mdFileRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<string | null>(null);
+
+  const categories = useMemo(() => {
+    const map = new Map<string, { count: number; type: Task["type"] }>();
+    for (const t of tasks) {
+      const existing = map.get(t.category);
+      if (existing) {
+        existing.count++;
+      } else {
+        map.set(t.category, { count: 1, type: t.type });
+      }
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [tasks]);
+
+  const activeCategory = categories.find(([name]) => name === categoryFilter)?.[1];
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -157,6 +187,10 @@ export function TaskList({
       return true;
     });
 
+    if (categoryFilter) {
+      list = list.filter((t) => t.category === categoryFilter);
+    }
+
     if (query) {
       list = list.filter(
         (t) =>
@@ -165,7 +199,17 @@ export function TaskList({
       );
     }
 
-    if (sort === "custom") return list;
+    if (sort === "custom") {
+      if (categoryFilter && activeCategory?.type === "schedule") {
+        return [...list].sort((a, b) => {
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return a.dueDate.localeCompare(b.dueDate);
+        });
+      }
+      return list;
+    }
 
     list = [...list].sort((a, b) => {
       switch (sort) {
@@ -187,7 +231,7 @@ export function TaskList({
     });
 
     return list;
-  }, [tasks, filter, sort, search]);
+  }, [tasks, filter, sort, search, categoryFilter, activeCategory]);
 
   const activeCount = tasks.filter((t) => !t.completed).length;
   const completedCount = tasks.length - activeCount;
@@ -287,6 +331,21 @@ export function TaskList({
     reader.readAsText(file);
   };
 
+  const handleMdFile = (file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setMdText(String(reader.result ?? ""));
+      setMdOpen(true);
+      if (mdFileRef.current) mdFileRef.current.value = "";
+    };
+    reader.onerror = () => {
+      setImportError("读取 MD 文件失败");
+      if (mdFileRef.current) mdFileRef.current.value = "";
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.header}>
@@ -313,6 +372,15 @@ export function TaskList({
               onClick={handleExport}
             />
           </Tooltip>
+          <Tooltip content="导入 Markdown" relationship="label">
+            <Button
+              appearance="subtle"
+              icon={<DocumentTextRegular />}
+              aria-label="导入 Markdown"
+              title="从 Markdown 导入任务"
+              onClick={() => mdFileRef.current?.click()}
+            />
+          </Tooltip>
           <Tooltip content="导入任务" relationship="label">
             <Button
               appearance="subtle"
@@ -333,6 +401,13 @@ export function TaskList({
         accept="application/json,.json"
         style={{ display: "none" }}
         onChange={(e) => handleImportFile(e.target.files?.[0])}
+      />
+      <input
+        ref={mdFileRef}
+        type="file"
+        accept=".md,.markdown,.txt,text/markdown"
+        style={{ display: "none" }}
+        onChange={(e) => handleMdFile(e.target.files?.[0])}
       />
 
       <div className={styles.toolbar}>
@@ -364,6 +439,19 @@ export function TaskList({
           <option value="created">按创建时间</option>
           <option value="priority">按优先级</option>
           <option value="due_date">按截止日期</option>
+        </Select>
+        <Select
+          className={styles.sortSelect}
+          size="small"
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+        >
+          <option value="">全部类别</option>
+          {categories.map(([name, meta]) => (
+            <option key={name} value={name}>
+              {name}（{meta.count}）
+            </option>
+          ))}
         </Select>
       </div>
 
@@ -420,6 +508,14 @@ export function TaskList({
         task={editing}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
+      />
+
+      <MdImportDialog
+        open={mdOpen}
+        initialText={mdText}
+        tasks={tasks}
+        onClose={() => setMdOpen(false)}
+        onImport={onAddMany}
       />
 
       <Dialog

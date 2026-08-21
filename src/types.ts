@@ -1,5 +1,7 @@
 export type Priority = "high" | "medium" | "low";
 
+export type TaskType = "schedule" | "list";
+
 export interface Task {
   id: string;
   title: string;
@@ -7,11 +9,20 @@ export interface Task {
   priority: Priority;
   dueDate: string | null;
   completed: boolean;
+  category: string;
+  type: TaskType;
   createdAt: string;
   updatedAt: string;
 }
 
-export type TaskInput = Pick<Task, "title" | "description" | "priority" | "dueDate">;
+export type TaskInput = Pick<
+  Task,
+  "title" | "description" | "priority" | "dueDate" | "category" | "type"
+>;
+
+export interface TaskSeed extends TaskInput {
+  completed?: boolean;
+}
 
 export type Filter = "all" | "active" | "completed";
 
@@ -51,6 +62,16 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+}
+
+export interface ImportDraft {
+  title: string;
+  description: string;
+  priority: Priority;
+  dueDate: string | null;
+  category: string;
+  type: TaskType;
+  completed?: boolean;
 }
 
 export interface AiConversation {

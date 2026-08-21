@@ -15,40 +15,7 @@ import {
 import { AI_MAX_CONVERSATIONS } from "../constants";
 import { uid } from "../utils/id";
 import { formatDueDate } from "../utils/date";
-
-declare global {
-  interface Window {
-    aiRequest?: (
-      payload: { url: string; headers: Record<string, string>; body: unknown },
-    ) => Promise<{ ok: boolean; status: number; text: string }>;
-  }
-}
-
-const REQUEST_TIMEOUT_MS = 120_000;
-
-type ApiFormat = "anthropic" | "openai";
-
-interface RequestPlan {
-  url: string;
-  headers: Record<string, string>;
-  body: unknown;
-  format: ApiFormat;
-}
-
-function normalizeBaseUrl(url: string): string {
-  return url
-    .trim()
-    .replace(/\/+$/, "")
-    .replace("platform.deepseek.com", "api.deepseek.com");
-}
-
-function detectFormat(baseUrl: string): ApiFormat {
-  const lower = baseUrl.toLowerCase();
-  if (lower.includes("anthropic") || lower.endsWith("/v1/messages")) {
-    return "anthropic";
-  }
-  return "openai";
-}
+import { buildRequest, doRequest, extractAnswer, formatLabel } from "../utils/ai";
 
 const PRIORITY_LABEL: Record<Priority, string> = {
   high: "高",
@@ -74,99 +41,6 @@ function buildTaskContext(tasks: Task[]): string {
   return `以下是用户当前的待办计划（${note}），请基于这些待办信息回答用户的问题：\n${lines.join(
     "\n",
   )}`;
-}
-
-function buildRequest(
-  config: AiConfig,
-  history: ChatMessage[],
-  system?: string,
-): RequestPlan {
-  const base = normalizeBaseUrl(config.baseUrl);
-  const format: ApiFormat =
-    config.apiFormat === "auto" ? detectFormat(base) : config.apiFormat;
-
-  const messages = history.map((m) => ({ role: m.role, content: m.content }));
-
-  if (format === "anthropic") {
-    return {
-      url: /\/v1\/messages$/.test(base) ? base : `${base}/v1/messages`,
-      format,
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: {
-        model: config.model,
-        max_tokens: 1024,
-        messages,
-        ...(system ? { system } : {}),
-      },
-    };
-  }
-
-  const url = /\/chat\/completions$/.test(base)
-    ? base
-    : /\/v1$/.test(base)
-      ? `${base}/chat/completions`
-      : `${base}/v1/chat/completions`;
-  return {
-    url,
-    format,
-    headers: {
-      "content-type": "application/json",
-      Authorization: `Bearer ${config.apiKey}`,
-    },
-    body: {
-      model: config.model,
-      max_tokens: 1024,
-      messages: system
-        ? [{ role: "system", content: system }, ...messages]
-        : messages,
-    },
-  };
-}
-
-function extractAnswer(data: unknown, format: ApiFormat): string {
-  if (format === "anthropic") {
-    const d = data as { content?: { type?: string; text?: string }[] };
-    return (
-      d.content
-        ?.filter((c) => c.type === "text" && c.text)
-        .map((c) => c.text as string)
-        .join("") ?? ""
-    );
-  }
-  const d = data as { choices?: { message?: { content?: string } }[] };
-  return typeof d.choices?.[0]?.message?.content === "string"
-    ? d.choices[0].message.content
-    : "";
-}
-
-async function doRequest(
-  plan: RequestPlan,
-): Promise<{ ok: boolean; status: number; body: string }> {
-  if (typeof window.aiRequest === "function") {
-    const res = await window.aiRequest(plan);
-    return { ok: res.ok, status: res.status, body: res.text };
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  try {
-    const res = await fetch(plan.url, {
-      method: "POST",
-      headers: plan.headers,
-      body: JSON.stringify(plan.body),
-      signal: controller.signal,
-    });
-    return { ok: res.ok, status: res.status, body: await res.text() };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function formatLabel(format: ApiFormat): string {
-  return format === "anthropic" ? "Anthropic 格式" : "OpenAI 兼容格式";
 }
 
 export function useAiChat(tasks: Task[] = []) {

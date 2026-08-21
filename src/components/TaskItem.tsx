@@ -10,6 +10,7 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { DeleteRegular, EditRegular } from "@fluentui/react-icons";
+import { TASK_TYPE_LABEL } from "../constants";
 import type { Priority, Task } from "../types";
 import { formatDueDate, isOverdue } from "../utils/date";
 
@@ -56,6 +57,13 @@ const useStyles = makeStyles({
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
     marginTop: tokens.spacingVerticalXS,
+  },
+  category: {
+    color: tokens.colorNeutralForeground3,
+  },
+  scheduleDate: {
+    color: tokens.colorBrandForeground1,
+    fontWeight: 600,
   },
   overdue: {
     color: tokens.colorStatusDangerForeground1,
@@ -146,6 +154,16 @@ export const TaskItem = memo(function TaskItem({
         )}
         <div className={styles.meta}>
           <Badge
+            appearance={task.type === "schedule" ? "filled" : "outline"}
+            color={task.type === "schedule" ? "brand" : undefined}
+            size="small"
+          >
+            {TASK_TYPE_LABEL[task.type]}
+          </Badge>
+          <Text size={200} className={styles.category}>
+            #{task.category}
+          </Text>
+          <Badge
             appearance="filled"
             color={PRIORITY_TONE[task.priority]}
             size="small"
@@ -153,7 +171,16 @@ export const TaskItem = memo(function TaskItem({
             {PRIORITY_LABEL[task.priority]}
           </Badge>
           {due && (
-            <Text size={200} className={overdue ? styles.overdue : undefined}>
+            <Text
+              size={200}
+              className={
+                overdue
+                  ? styles.overdue
+                  : task.type === "schedule"
+                    ? styles.scheduleDate
+                    : undefined
+              }
+            >
               📅 {due}
               {overdue ? " ⚠️ 已逾期" : ""}
             </Text>

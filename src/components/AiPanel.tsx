@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Button,
   Dialog,
@@ -18,18 +18,23 @@ import {
   MessageBarBody,
   Spinner,
   Text,
+  Textarea,
   tokens,
 } from "@fluentui/react-components";
 import {
   AddRegular,
   BotRegular,
+  ClipboardTaskAddRegular,
   DeleteRegular,
   DismissRegular,
   SendRegular,
   SettingsRegular,
 } from "@fluentui/react-icons";
 import { useAiChat } from "../hooks/useAiChat";
-import type { AiApiFormat, Task } from "../types";
+import { useAiImport } from "../hooks/useAiImport";
+import { ImportPreview } from "./ImportPreview";
+import { dedupeDrafts, extractDrafts } from "../utils/importTasks";
+import type { AiApiFormat, ImportDraft, Task, TaskInput } from "../types";
 import { timeAgo } from "../utils/date";
 
 const FORMAT_OPTIONS: { key: AiApiFormat; label: string }[] = [
@@ -140,9 +145,34 @@ const useStyles = makeStyles({
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
+  importPlanInput: {
+    width: "100%",
+  },
+  rawBlock: {
+    display: "block",
+    maxHeight: "120px",
+    overflowY: "auto",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    padding: tokens.spacingHorizontalM,
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground2,
+    fontSize: "12px",
+  },
+  success: {
+    paddingLeft: tokens.spacingHorizontalM,
+    paddingRight: tokens.spacingHorizontalM,
+  },
 });
 
-export function AiPanel({ tasks }: { tasks: Task[] }) {
+export function AiPanel({
+  tasks,
+  onImportTasks,
+}: {
+  tasks: Task[];
+  onImportTasks: (inputs: TaskInput[]) => void;
+}) {
   const styles = useStyles();
   const {
     config,
@@ -169,6 +199,52 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
   const [apiFormat, setApiFormat] = useState<AiApiFormat>(config.apiFormat);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [draftsVersion, setDraftsVersion] = useState(0);
+  const {
+    plan,
+    setPlan,
+    drafts,
+    setDrafts,
+    loading: importLoading,
+    error: importError,
+    setError: setImportError,
+    raw,
+    generate,
+    reset: resetImport,
+  } = useAiImport(tasks, config);
+
+  const importableMessages = useMemo(() => {
+    const result: { messageId: string; drafts: ImportDraft[] }[] = [];
+    for (const m of messages) {
+      if (m.role !== "assistant") continue;
+      const parsed = extractDrafts(m.content);
+      if (parsed.length === 0) continue;
+      result.push({ messageId: m.id, drafts: dedupeDrafts(parsed, tasks) });
+    }
+    return result;
+  }, [messages, tasks]);
+
+  const handleImportTasks = (items: ImportDraft[]) => {
+    if (items.length === 0) return;
+    onImportTasks(items);
+    setImportSuccess(`已导入 ${items.length} 个任务`);
+  };
+
+  const openImport = () => {
+    resetImport();
+    setImportOpen(true);
+  };
+
+  const handleImportInDialog = (items: ImportDraft[]) => {
+    handleImportTasks(items);
+    const importedTitles = new Set(items.map((it) => it.title.trim()));
+    setDrafts((prev) =>
+      prev.filter((d) => !importedTitles.has(d.title.trim())),
+    );
+    setDraftsVersion((v) => v + 1);
+  };
 
   const openSettings = () => {
     setBaseUrl(config.baseUrl);
@@ -217,6 +293,14 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
           <Button
             appearance="subtle"
             size="small"
+            icon={<ClipboardTaskAddRegular />}
+            title="AI 导入计划"
+            aria-label="AI 导入计划"
+            onClick={openImport}
+          />
+          <Button
+            appearance="subtle"
+            size="small"
             icon={<AddRegular />}
             title="新对话"
             aria-label="新对话"
@@ -241,18 +325,35 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
             <Text size={200}>可以帮你拆解任务、优化描述、提供建议</Text>
             <br />
             <Text size={200}>
+              点击上方 📋 按钮，可让 AI 把一段计划直接生成为待办任务
+            </Text>
+            <br />
+            <Text size={200}>
               当前已注入 {tasks.length} 条待办计划，可结合计划回答你的问题
             </Text>
           </div>
         ) : (
-          messages.map((m) => (
-            <div
-              key={m.id}
-              className={`${styles.bubble} ${m.role === "user" ? styles.user : styles.assistant}`}
-            >
-              <Text size={300}>{m.content}</Text>
-            </div>
-          ))
+          messages.map((m) => {
+            const embed =
+              m.role === "assistant"
+                ? importableMessages.find((x) => x.messageId === m.id)
+                : undefined;
+            return (
+              <div key={m.id}>
+                <div
+                  className={`${styles.bubble} ${m.role === "user" ? styles.user : styles.assistant}`}
+                >
+                  <Text size={300}>{m.content}</Text>
+                </div>
+                {embed && embed.drafts.length > 0 && (
+                  <ImportPreview
+                    drafts={embed.drafts}
+                    onImport={handleImportTasks}
+                  />
+                )}
+              </div>
+            );
+          })
         )}
         {loading && (
           <div className={styles.loading}>
@@ -271,6 +372,22 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
                 icon={<DismissRegular />}
                 aria-label="关闭提示"
                 onClick={() => setError(null)}
+              />
+            </MessageBarActions>
+          </MessageBar>
+        </div>
+      )}
+
+      {importSuccess && (
+        <div className={styles.success}>
+          <MessageBar intent="success">
+            <MessageBarBody>{importSuccess}</MessageBarBody>
+            <MessageBarActions>
+              <Button
+                appearance="transparent"
+                icon={<DismissRegular />}
+                aria-label="关闭提示"
+                onClick={() => setImportSuccess(null)}
               />
             </MessageBarActions>
           </MessageBar>
@@ -405,6 +522,94 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
               </Button>
               <Button appearance="primary" onClick={saveSettings}>
                 保存
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      <Dialog
+        open={importOpen}
+        onOpenChange={(_e, d) => {
+          if (!d.open) {
+            setImportOpen(false);
+            setImportSuccess(null);
+          }
+        }}
+      >
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>AI 导入计划</DialogTitle>
+            <DialogContent>
+              <div className={styles.settingsForm}>
+                <Field label="描述你的计划">
+                  <Textarea
+                    className={styles.importPlanInput}
+                    value={plan}
+                    maxLength={4000}
+                    placeholder="例如：下周准备搬家，帮我整理成待办任务，包括联系搬家公司、打包行李、预约水电过户、通知房东退租等"
+                    rows={4}
+                    onChange={(e) => setPlan(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  appearance="primary"
+                  icon={<BotRegular />}
+                  disabled={importLoading}
+                  onClick={() => generate(plan)}
+                >
+                  {importLoading ? "AI 生成中..." : "AI 生成计划"}
+                </Button>
+
+                {importLoading && <Spinner size="small" label="正在拆解计划..." />}
+
+                {importError && (
+                  <MessageBar intent="warning">
+                    <MessageBarBody>{importError}</MessageBarBody>
+                    <MessageBarActions>
+                      <Button
+                        appearance="transparent"
+                        icon={<DismissRegular />}
+                        aria-label="关闭提示"
+                        onClick={() => setImportError(null)}
+                      />
+                    </MessageBarActions>
+                  </MessageBar>
+                )}
+
+                {raw && drafts.length === 0 && (
+                  <details>
+                    <summary>查看 AI 原始返回</summary>
+                    <Text as="pre" size={200} className={styles.rawBlock}>
+                      {raw}
+                    </Text>
+                  </details>
+                )}
+
+                {drafts.length > 0 && (
+                  <ImportPreview
+                    key={draftsVersion}
+                    drafts={drafts}
+                    onImport={handleImportInDialog}
+                  />
+                )}
+
+                {importSuccess && (
+                  <MessageBar intent="success">
+                    <MessageBarBody>{importSuccess}</MessageBarBody>
+                  </MessageBar>
+                )}
+              </div>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                appearance="secondary"
+                onClick={() => {
+                  setImportOpen(false);
+                  setImportSuccess(null);
+                }}
+              >
+                关闭
               </Button>
             </DialogActions>
           </DialogBody>

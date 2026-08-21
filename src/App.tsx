@@ -134,6 +134,7 @@ export default function App() {
     tasks,
     deleted,
     addTask,
+    addTasks,
     updateTask,
     toggleTask,
     deleteTask,
@@ -177,7 +178,7 @@ export default function App() {
           <TimeCard />
           <WeatherCard />
           <Suspense fallback={<div className={styles.aiFallback}>AI 助手加载中...</div>}>
-            <AiPanel tasks={tasks} />
+            <AiPanel tasks={tasks} onImportTasks={addTasks} />
           </Suspense>
           <SyncPanel tasks={tasks} deleted={deleted} onApplySync={applySyncData} />
           <div className={styles.sidebarFooter}>
@@ -199,6 +200,7 @@ export default function App() {
           <TaskList
             tasks={tasks}
             onAdd={addTask}
+            onAddMany={addTasks}
             onUpdate={updateTask}
             onToggle={toggleTask}
             onDelete={deleteTask}

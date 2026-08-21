@@ -12,10 +12,11 @@ import {
   makeStyles,
   Radio,
   RadioGroup,
+  Select,
   Textarea,
   tokens,
 } from "@fluentui/react-components";
-import type { Priority, Task, TaskInput } from "../types";
+import type { Priority, Task, TaskInput, TaskType } from "../types";
 
 const useStyles = makeStyles({
   form: {
@@ -42,6 +43,8 @@ const EMPTY: TaskInput = {
   description: "",
   priority: "medium",
   dueDate: null,
+  category: "默认",
+  type: "list",
 };
 
 export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
@@ -58,6 +61,8 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
               description: task.description,
               priority: task.priority,
               dueDate: task.dueDate,
+              category: task.category,
+              type: task.type,
             }
           : { ...EMPTY },
       );
@@ -112,6 +117,30 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
                   }
                 />
               </Field>
+
+              <div className={styles.row}>
+                <Field label="类别">
+                  <Input
+                    value={form.category}
+                    maxLength={50}
+                    placeholder="例如：工作 / 生活 / 默认"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, category: e.target.value }))
+                    }
+                  />
+                </Field>
+                <Field label="类型">
+                  <Select
+                    value={form.type}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, type: e.target.value as TaskType }))
+                    }
+                  >
+                    <option value="list">清单</option>
+                    <option value="schedule">日程表</option>
+                  </Select>
+                </Field>
+              </div>
 
               <div className={styles.row}>
                 <Field label="优先级">

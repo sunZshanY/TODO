@@ -1,5 +1,11 @@
-import { STORAGE_KEYS } from "./constants";
-import type { AiConfig, AiConversation, DeletedTask, SyncConfig, Task } from "./types";
+import { DEFAULT_CATEGORY, STORAGE_KEYS } from "./constants";
+import type {
+  AiConfig,
+  AiConversation,
+  DeletedTask,
+  SyncConfig,
+  Task,
+} from "./types";
 
 export const DEFAULT_AI_CONFIG: AiConfig = {
   baseUrl: "https://api.deepseek.com",
@@ -8,10 +14,22 @@ export const DEFAULT_AI_CONFIG: AiConfig = {
   apiFormat: "auto",
 };
 
+/** 兼容旧数据：为缺失 category/type 的任务填充默认值 */
+export function normalizeTask(task: Task): Task {
+  return {
+    ...task,
+    category:
+      typeof task.category === "string" && task.category.trim()
+        ? task.category
+        : DEFAULT_CATEGORY,
+    type: task.type === "schedule" ? "schedule" : "list",
+  };
+}
+
 export function loadTasks(): Task[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.tasks);
-    return raw ? (JSON.parse(raw) as Task[]) : [];
+    return raw ? (JSON.parse(raw) as Task[]).map(normalizeTask) : [];
   } catch {
     return [];
   }
@@ -65,13 +83,15 @@ export function parseTasks(raw: string): Task[] {
   if (!Array.isArray(data)) {
     throw new Error("数据格式不正确，应为任务数组");
   }
-  return data.filter(
-    (t): t is Task =>
-      typeof t === "object" &&
-      t !== null &&
-      typeof (t as Task).id === "string" &&
-      typeof (t as Task).title === "string",
-  );
+  return data
+    .filter(
+      (t): t is Task =>
+        typeof t === "object" &&
+        t !== null &&
+        typeof (t as Task).id === "string" &&
+        typeof (t as Task).title === "string",
+    )
+    .map(normalizeTask);
 }
 
 export function loadDeletedTasks(): DeletedTask[] {
