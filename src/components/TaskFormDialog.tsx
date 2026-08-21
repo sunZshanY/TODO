@@ -28,6 +28,11 @@ const useStyles = makeStyles({
     display: "flex",
     gap: tokens.spacingHorizontalL,
     alignItems: "flex-end",
+    "@media (max-width: 480px)": {
+      flexDirection: "column",
+      alignItems: "stretch",
+      gap: tokens.spacingVerticalS,
+    },
   },
 });
 

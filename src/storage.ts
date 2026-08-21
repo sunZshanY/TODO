@@ -135,3 +135,32 @@ export function saveSyncConfig(config: SyncConfig): void {
     // 忽略存储异常
   }
 }
+
+export interface TaskCompleteConfig {
+  autoDelete: boolean;
+}
+
+export const DEFAULT_TASK_COMPLETE_CONFIG: TaskCompleteConfig = {
+  autoDelete: false,
+};
+
+export function loadTaskCompleteConfig(): TaskCompleteConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.taskComplete);
+    if (!raw) return { ...DEFAULT_TASK_COMPLETE_CONFIG };
+    return {
+      ...DEFAULT_TASK_COMPLETE_CONFIG,
+      ...(JSON.parse(raw) as Partial<TaskCompleteConfig>),
+    };
+  } catch {
+    return { ...DEFAULT_TASK_COMPLETE_CONFIG };
+  }
+}
+
+export function saveTaskCompleteConfig(config: TaskCompleteConfig): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.taskComplete, JSON.stringify(config));
+  } catch {
+    // 忽略存储异常
+  }
+}

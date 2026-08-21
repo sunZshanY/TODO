@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   aiConfig: "todo_fluent_ai_config",
   aiConversations: "todo_fluent_ai_conversations",
   weather: "todo_fluent_weather",
+  taskComplete: "todo_fluent_task_complete",
 } as const;
 
 export const AI_MAX_CONVERSATIONS = 50;

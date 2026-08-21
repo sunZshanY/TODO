@@ -14,6 +14,7 @@ import {
   MessageBarActions,
   MessageBarBody,
   Select,
+  Switch,
   Text,
   ToggleButton,
   Tooltip,
@@ -30,7 +31,11 @@ import {
 import { TaskItem } from "./TaskItem";
 import { TaskFormDialog } from "./TaskFormDialog";
 import { MdImportDialog } from "./MdImportDialog";
-import { parseTasks } from "../storage";
+import {
+  loadTaskCompleteConfig,
+  parseTasks,
+  saveTaskCompleteConfig,
+} from "../storage";
 import type {
   Filter,
   Priority,
@@ -89,6 +94,17 @@ const useStyles = makeStyles({
   },
   sortSelect: {
     minWidth: "140px",
+    "@media (max-width: 640px)": {
+      minWidth: "110px",
+      flexGrow: 1,
+    },
+  },
+  autoDeleteWrap: {
+    display: "flex",
+    alignItems: "center",
+    "@media (max-width: 640px)": {
+      marginLeft: "auto",
+    },
   },
   list: {
     display: "flex",
@@ -160,6 +176,10 @@ export function TaskList({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [mdOpen, setMdOpen] = useState(false);
   const [mdText, setMdText] = useState("");
+  const [autoDelete, setAutoDelete] = useState(
+    () => loadTaskCompleteConfig().autoDelete,
+  );
+  const [completing, setCompleting] = useState<Task | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const mdFileRef = useRef<HTMLInputElement>(null);
   const dragIdRef = useRef<string | null>(null);
@@ -256,7 +276,33 @@ export function TaskList({
     }
   };
 
-  const handleToggleItem = useCallback((id: string) => onToggle(id), [onToggle]);
+  const handleToggleItem = useCallback(
+    (id: string, checked: boolean) => {
+      if (autoDelete && checked) {
+        const target = tasks.find((t) => t.id === id);
+        if (target) {
+          setCompleting(target);
+          return;
+        }
+      }
+      onToggle(id);
+    },
+    [autoDelete, onToggle, tasks],
+  );
+
+  const handleCompletingDelete = () => {
+    if (completing) {
+      onDelete(completing.id);
+      setCompleting(null);
+    }
+  };
+
+  const handleCompletingKeep = () => {
+    if (completing) {
+      onToggle(completing.id);
+      setCompleting(null);
+    }
+  };
 
   const handleEditItem = useCallback((task: Task) => {
     setEditing(task);
@@ -453,6 +499,17 @@ export function TaskList({
             </option>
           ))}
         </Select>
+        <div className={styles.autoDeleteWrap}>
+          <Switch
+            size="small"
+            checked={autoDelete}
+            label="完成自动删除"
+            onChange={(_e, data) => {
+              setAutoDelete(data.checked);
+              saveTaskCompleteConfig({ autoDelete: data.checked });
+            }}
+          />
+        </div>
       </div>
 
       {importError && (
@@ -542,6 +599,38 @@ export function TaskList({
                 onClick={handleDelete}
               >
                 确认删除
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+      <Dialog
+        open={!!completing}
+        onOpenChange={(_e, d) => {
+          if (!d.open) setCompleting(null);
+        }}
+      >
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>完成任务</DialogTitle>
+            <DialogContent>
+              <Text>
+                任务「{completing?.title}」已完成，是否自动删除？
+              </Text>
+            </DialogContent>
+            <DialogActions>
+              <Button appearance="secondary" onClick={() => setCompleting(null)}>
+                取消
+              </Button>
+              <Button appearance="secondary" onClick={handleCompletingKeep}>
+                保留（仅完成）
+              </Button>
+              <Button
+                appearance="primary"
+                className={styles.danger}
+                onClick={handleCompletingDelete}
+              >
+                删除
               </Button>
             </DialogActions>
           </DialogBody>

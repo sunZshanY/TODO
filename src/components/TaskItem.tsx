@@ -22,6 +22,11 @@ const useStyles = makeStyles({
     paddingTop: tokens.spacingVerticalS,
     paddingBottom: tokens.spacingVerticalS,
     width: "100%",
+    "@media (max-width: 480px)": {
+      gap: tokens.spacingHorizontalXS,
+      paddingTop: tokens.spacingVerticalXS,
+      paddingBottom: tokens.spacingVerticalXS,
+    },
   },
   completed: {
     opacity: 0.6,
@@ -72,6 +77,9 @@ const useStyles = makeStyles({
     display: "flex",
     gap: tokens.spacingHorizontalXXS,
     flexShrink: 0,
+    "@media (max-width: 480px)": {
+      gap: tokens.spacingHorizontalXXS,
+    },
   },
 });
 
@@ -91,7 +99,7 @@ interface Props {
   task: Task;
   dragging: boolean;
   dragOver: boolean;
-  onToggle: (id: string) => void;
+  onToggle: (id: string, checked: boolean) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onDragStart: (id: string) => void;
@@ -136,7 +144,7 @@ export const TaskItem = memo(function TaskItem({
       <Checkbox
         checked={task.completed}
         aria-label={task.completed ? "标记为未完成" : "标记为已完成"}
-        onChange={() => onToggle(task.id)}
+        onChange={(_e, data) => onToggle(task.id, data.checked === true)}
       />
 
       <div className={styles.content} onClick={() => onEdit(task)}>

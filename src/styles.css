@@ -8,3 +8,20 @@ body {
   margin: 0;
   overflow: hidden;
 }
+
+/* 移动端：对话框适配窄屏 */
+@media (max-width: 480px) {
+  .fui-DialogSurface {
+    max-width: calc(100vw - 24px);
+    width: calc(100vw - 24px);
+  }
+
+  .fui-DialogActions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fui-DialogActions .fui-Button {
+    width: 100%;
+  }
+}
