@@ -239,6 +239,10 @@ export function AiPanel({ tasks }: { tasks: Task[] }) {
             <Text size={400}>你好，我是 AI 助手</Text>
             <br />
             <Text size={200}>可以帮你拆解任务、优化描述、提供建议</Text>
+            <br />
+            <Text size={200}>
+              当前已注入 {tasks.length} 条待办计划，可结合计划回答你的问题
+            </Text>
           </div>
         ) : (
           messages.map((m) => (

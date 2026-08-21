@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AiConfig, AiConversation, ChatMessage, Task } from "../types";
+import type {
+  AiConfig,
+  AiConversation,
+  ChatMessage,
+  Priority,
+  Task,
+} from "../types";
 import {
   loadAiConfig,
   loadAiConversations,
@@ -44,17 +50,30 @@ function detectFormat(baseUrl: string): ApiFormat {
   return "openai";
 }
 
+const PRIORITY_LABEL: Record<Priority, string> = {
+  high: "高",
+  medium: "中",
+  low: "低",
+};
+
 function buildTaskContext(tasks: Task[]): string {
-  if (tasks.length === 0) return "";
+  const total = tasks.length;
+  if (total === 0) {
+    return "用户当前没有任何待办计划。如果用户问起计划或任务，请如实告知当前没有待办任务。";
+  }
   const lines = tasks.slice(0, 50).map((t, i) => {
     const status = t.completed ? "已完成" : "未完成";
-    const due = t.dueDate ? `，截止 ${formatDueDate(t.dueDate)}` : "";
-    const desc = t.description ? `，备注：${t.description}` : "";
-    return `${i + 1}. [${status}] ${t.title}（${t.priority}优先级${due}）${desc}`;
+    const due = formatDueDate(t.dueDate);
+    const parts = [`${i + 1}. [${status}] ${t.title}`];
+    parts.push(`${PRIORITY_LABEL[t.priority] ?? "中"}优先级`);
+    if (due) parts.push(`截止 ${due}`);
+    if (t.description) parts.push(`备注：${t.description}`);
+    return `${parts[0]}（${parts.slice(1).join("；")}）`;
   });
-  return `以下是用户当前的待办计划（共 ${tasks.length} 项，仅列出前 50 项）：\n${lines.join(
+  const note = total > 50 ? `共 ${total} 项，仅列出前 50 项` : `共 ${total} 项`;
+  return `以下是用户当前的待办计划（${note}），请基于这些待办信息回答用户的问题：\n${lines.join(
     "\n",
-  )}\n请基于这些待办信息回答用户的问题。`;
+  )}`;
 }
 
 function buildRequest(

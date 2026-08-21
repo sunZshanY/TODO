@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+
+      - name: Package exe
+        run: npm run package:win
+        env:
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+
+      - name: Create zip
+        shell: pwsh
+        run: Compress-Archive -Path "release/TodoFluent-win32-x64/*" -DestinationPath "release/TodoFluent-win32-x64.zip" -Force
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/TodoFluent-win32-x64.zip
+          generate_release_notes: true
