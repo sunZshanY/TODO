@@ -1,0 +1,1 @@
+html,body,#root{height:100%}body{margin:0;overflow:hidden}@media (width<=480px){.fui-DialogSurface{width:calc(100vw - 24px);max-width:calc(100vw - 24px)}.fui-DialogActions{flex-direction:column;align-items:stretch}.fui-DialogActions .fui-Button{width:100%}}
