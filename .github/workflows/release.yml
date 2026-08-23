@@ -1,3 +1,5 @@
+# This workflow is managed by gh actions-lock.
+
 name: Release
 
 on:
@@ -13,9 +15,9 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -35,7 +37,7 @@ jobs:
         run: Compress-Archive -Path "release/TodoFluent-win32-x64/*" -DestinationPath "release/TodoFluent-win32-x64.zip" -Force
 
       - name: Upload release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.2
         with:
           files: release/TodoFluent-win32-x64.zip
           generate_release_notes: true
