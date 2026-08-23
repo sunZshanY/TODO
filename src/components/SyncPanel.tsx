@@ -187,6 +187,13 @@ export function SyncPanel({ tasks, deleted, onApplySync }: Props) {
                   onChange={(e) => setDraft({ ...draft, gistId: e.target.value.trim() })}
                 />
               </Field>
+              <Field label="代理地址（可选，GitHub 被墙时用）" size="small">
+                <Input
+                  value={draft.proxy ?? ""}
+                  placeholder="http://127.0.0.1:7890 或 http://127.0.0.1:10809"
+                  onChange={(e) => setDraft({ ...draft, proxy: e.target.value })}
+                />
+              </Field>
               <Field size="small">
                 <Switch
                   label="自动同步"

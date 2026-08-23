@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Dialog,
@@ -108,6 +108,7 @@ const useStyles = makeStyles({
   },
   inputArea: {
     display: "flex",
+    alignItems: "flex-end",
     gap: tokens.spacingHorizontalXS,
     padding: tokens.spacingHorizontalM,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -211,6 +212,7 @@ export function AiPanel({
     error: importError,
     setError: setImportError,
     raw,
+    rawBody,
     generate,
     reset: resetImport,
   } = useAiImport(tasks, config);
@@ -246,6 +248,20 @@ export function AiPanel({
     setDraftsVersion((v) => v + 1);
   };
 
+  const handleGenerateImport = async () => {
+    const items = await generate(plan);
+    if (items && items.length > 0) {
+      handleImportInDialog(items);
+    }
+  };
+
+  const handlePlanKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && e.ctrlKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleGenerateImport();
+    }
+  };
+
   const openSettings = () => {
     setBaseUrl(config.baseUrl);
     setApiKey(config.apiKey);
@@ -278,8 +294,16 @@ export function AiPanel({
     setTesting(false);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, loading]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
       send();
     }
   };
@@ -317,7 +341,7 @@ export function AiPanel({
         </div>
       </div>
 
-      <div className={styles.messages}>
+      <div className={styles.messages} ref={messagesRef}>
         {messages.length === 0 && !loading ? (
           <div className={styles.empty}>
             <Text size={400}>你好，我是 AI 助手</Text>
@@ -345,6 +369,14 @@ export function AiPanel({
                 >
                   <Text size={300}>{m.content}</Text>
                 </div>
+                {m.role === "assistant" && m.raw && (
+                  <details>
+                    <summary>查看原始返回</summary>
+                    <Text as="pre" size={200} className={styles.rawBlock}>
+                      {m.raw}
+                    </Text>
+                  </details>
+                )}
                 {embed && embed.drafts.length > 0 && (
                   <ImportPreview
                     drafts={embed.drafts}
@@ -395,13 +427,15 @@ export function AiPanel({
       )}
 
       <div className={styles.inputArea}>
-        <Input
+        <Textarea
           className={styles.input}
           value={input}
-          placeholder="输入消息，Enter 发送"
+          placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+          resize="none"
+          rows={Math.min(8, Math.max(1, input.split("\n").length))}
+          maxLength={8000}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          maxLength={2000}
         />
         <Button
           appearance="primary"
@@ -546,19 +580,20 @@ export function AiPanel({
                   <Textarea
                     className={styles.importPlanInput}
                     value={plan}
-                    maxLength={4000}
+                    maxLength={8000}
                     placeholder="例如：下周准备搬家，帮我整理成待办任务，包括联系搬家公司、打包行李、预约水电过户、通知房东退租等"
-                    rows={4}
+                    rows={6}
                     onChange={(e) => setPlan(e.target.value)}
+                    onKeyDown={handlePlanKeyDown}
                   />
                 </Field>
                 <Button
                   appearance="primary"
                   icon={<BotRegular />}
                   disabled={importLoading}
-                  onClick={() => generate(plan)}
+                  onClick={handleGenerateImport}
                 >
-                  {importLoading ? "AI 生成中..." : "AI 生成计划"}
+                  {importLoading ? "AI 生成中..." : "AI 生成并直接导入"}
                 </Button>
 
                 {importLoading && <Spinner size="small" label="正在拆解计划..." />}
@@ -577,11 +612,11 @@ export function AiPanel({
                   </MessageBar>
                 )}
 
-                {raw && drafts.length === 0 && (
+                {(raw || rawBody) && drafts.length === 0 && (
                   <details>
                     <summary>查看 AI 原始返回</summary>
                     <Text as="pre" size={200} className={styles.rawBlock}>
-                      {raw}
+                      {rawBody || raw}
                     </Text>
                   </details>
                 )}

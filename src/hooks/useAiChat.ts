@@ -140,19 +140,40 @@ export function useAiChat(tasks: Task[] = []) {
     try {
       const system = buildTaskContext(tasks);
       const plan = buildRequest(config, history, system);
-      const res = await doRequest(plan);
+      let res = await doRequest(plan);
+      if (
+        plan.format === "anthropic" &&
+        res.status === 400 &&
+        /thinking/i.test(res.body)
+      ) {
+        const fallback = buildRequest(config, history, system, 2048, {
+          disableThinking: false,
+        });
+        res = await doRequest(fallback);
+      }
 
       if (!res.ok) {
         throw new Error(`请求失败（${res.status}）${res.body.slice(0, 200)}`);
       }
 
-      const answer =
-        extractAnswer(JSON.parse(res.body) as unknown, plan.format) ||
-        "（模型未返回内容）";
+      let data: unknown;
+      try {
+        data = JSON.parse(res.body) as unknown;
+      } catch {
+        throw new Error(
+          `服务返回的不是有效 JSON（HTTP ${res.status}）：${res.body.slice(0, 200)}`,
+        );
+      }
+      const answer = extractAnswer(data) || "（模型未返回内容）";
 
       setMessages((prev) => [
         ...prev,
-        { id: uid(), role: "assistant", content: answer },
+        {
+          id: uid(),
+          role: "assistant",
+          content: answer,
+          ...(answer === "（模型未返回内容）" ? { raw: res.body } : {}),
+        },
       ]);
     } catch (err) {
       if (err instanceof TypeError) {

@@ -7,7 +7,7 @@ import {
   extractDrafts,
 } from "../utils/importTasks";
 
-const IMPORT_MAX_TOKENS = 4096;
+const IMPORT_MAX_TOKENS = 12_000;
 
 interface GenerateOptions {
   system?: string;
@@ -19,6 +19,7 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [raw, setRaw] = useState<string | null>(null);
+  const [rawBody, setRawBody] = useState<string | null>(null);
   const lastSystemRef = useRef<string | null>(null);
 
   const generate = useCallback(
@@ -39,6 +40,7 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
       setPlan(trimmed);
       setDrafts([]);
       setRaw(null);
+      setRawBody(null);
       setError(null);
       setLoading(true);
 
@@ -48,7 +50,17 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
 
       try {
         const request = buildRequest(config, history, system, IMPORT_MAX_TOKENS);
-        const res = await doRequest(request);
+        let res = await doRequest(request);
+        if (
+          request.format === "anthropic" &&
+          res.status === 400 &&
+          /thinking/i.test(res.body)
+        ) {
+          const fallback = buildRequest(config, history, system, IMPORT_MAX_TOKENS, {
+            disableThinking: false,
+          });
+          res = await doRequest(fallback);
+        }
 
         if (!res.ok) {
           throw new Error(
@@ -56,16 +68,32 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
           );
         }
 
-        const answer =
-          extractAnswer(JSON.parse(res.body) as unknown, request.format) || "";
+        let data: unknown;
+        try {
+          data = JSON.parse(res.body) as unknown;
+        } catch {
+          throw new Error(
+            `服务返回的不是有效 JSON（HTTP ${res.status}）：${res.body.slice(0, 200)}`,
+          );
+        }
+        const answer = extractAnswer(data) || "";
+        setRawBody(res.body);
         setRaw(answer);
 
-        const parsed = extractDrafts(answer);
+        // 优先从提取的答案解析；失败时直接尝试解析原始响应体（兼容裸数组等非标准结构）
+        let parsed = extractDrafts(answer);
+        if (parsed.length === 0) parsed = extractDrafts(res.body);
         const deduped = dedupeDrafts(parsed, tasks);
         setDrafts(deduped);
 
         if (parsed.length === 0) {
-          setError("未能从 AI 返回中解析出任务，请重试或换一种描述方式。");
+          if (/thinking/i.test(res.body) && /max_tokens/i.test(res.body)) {
+            setError(
+              "模型思考内容过长，输出被截断且未返回正文。已尝试禁用思考后重试，若仍失败请换更简洁的描述。",
+            );
+          } else {
+            setError("未能从 AI 返回中解析出任务，请重试或换一种描述方式。");
+          }
         } else if (deduped.length === 0) {
           setError("AI 生成的任务与已有任务重复，无需重复导入。");
         } else if (deduped.length < parsed.length) {
@@ -109,6 +137,7 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
     setPlan("");
     setDrafts([]);
     setRaw(null);
+    setRawBody(null);
     setError(null);
   }, []);
 
@@ -121,6 +150,7 @@ export function useAiImport(tasks: Task[], config: AiConfig) {
     error,
     setError,
     raw,
+    rawBody,
     generate,
     reset,
   };

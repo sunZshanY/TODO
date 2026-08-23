@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   aiConversations: "todo_fluent_ai_conversations",
   weather: "todo_fluent_weather",
   taskComplete: "todo_fluent_task_complete",
+  remindersNotified: "todo_fluent_reminders_notified",
 } as const;
 
 export const AI_MAX_CONVERSATIONS = 50;
@@ -23,3 +24,9 @@ export const TASK_TYPE_LABEL: Record<import("./types").TaskType, string> = {
   schedule: "日程表",
   list: "清单",
 };
+
+export const REMINDER_POLL_MS = 30 * 1000; // 提醒轮询间隔
+
+export const REMINDER_RECENT_GRACE_MS = 60 * 1000; // 仅提醒刚到期（1 分钟内）的任务
+
+export const DUE_TIME_VISIBLE_DAYS = 7; // 截止时间显示时分的天数窗口（今天起 7 天内显示时分，其余只显示日期）

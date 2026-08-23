@@ -2,6 +2,61 @@ import { SYNC_GIST_FILENAME, TOMBSTONE_TTL } from "./constants";
 import type { DeletedTask, SyncData, Task } from "./types";
 
 const GITHUB_API = "https://api.github.com";
+const REQUEST_TIMEOUT_MS = 60_000;
+
+declare global {
+  interface Window {
+    githubRequest?: (payload: {
+      url: string;
+      method?: string;
+      headers?: Record<string, string>;
+      body?: string;
+    }) => Promise<{ ok: boolean; status: number; text: string }>;
+    setProxy?: (proxy: string) => Promise<void>;
+  }
+}
+
+interface GhResponse {
+  ok: boolean;
+  status: number;
+  text: string;
+}
+
+/** 优先走 Electron 主进程（绕开渲染进程 CORS / 用 Node 网络栈），否则回退到浏览器 fetch */
+async function ghFetch(
+  url: string,
+  init?: { method?: string; headers?: Record<string, string>; body?: string },
+): Promise<GhResponse> {
+  const method = init?.method ?? "GET";
+  if (typeof window.githubRequest === "function") {
+    return window.githubRequest({
+      url,
+      method,
+      headers: init?.headers,
+      body: init?.body,
+    });
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: init?.headers,
+      body: init?.body,
+      signal: controller.signal,
+    });
+    return { ok: res.ok, status: res.status, text: await res.text() };
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error(
+        "网络错误：无法连接到 GitHub API（可能网络受限或被墙）。请检查网络，或尝试配置代理/镜像后再同步。",
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface GistFile {
   filename: string;
@@ -15,7 +70,7 @@ interface Gist {
   files: Record<string, GistFile>;
 }
 
-function headers(token: string): HeadersInit {
+function headers(token: string): Record<string, string> {
   return {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
@@ -54,18 +109,17 @@ function normalizeSyncData(data: unknown): SyncData {
 }
 
 export function fetchRemoteData(token: string, gistId: string): Promise<SyncData | null> {
-  return fetch(`${GITHUB_API}/gists/${gistId}`, { headers: headers(token) }).then(async (res) => {
+  return ghFetch(`${GITHUB_API}/gists/${gistId}`, { headers: headers(token) }).then(async (res) => {
     if (res.status === 404) return null;
     if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      throw new Error(`读取云端失败（HTTP ${res.status}）：${body.slice(0, 200)}`);
+      throw new Error(`读取云端失败（HTTP ${res.status}）：${res.text.slice(0, 200)}`);
     }
-    const gist = (await res.json()) as Gist;
+    const gist = JSON.parse(res.text) as Gist;
     const file = gist.files?.[SYNC_GIST_FILENAME];
     if (!file) return null;
-    const raw = file.raw_url ? await fetch(file.raw_url) : null;
+    const raw = file.raw_url ? await ghFetch(file.raw_url) : null;
     const content =
-      raw && raw.ok ? await raw.text() : typeof file.content === "string" ? file.content : "";
+      raw && raw.ok ? raw.text : typeof file.content === "string" ? file.content : "";
     if (!content.trim()) return null;
     return normalizeSyncData(JSON.parse(content));
   });
@@ -82,32 +136,28 @@ export function pushRemoteData(
     files: { [SYNC_GIST_FILENAME]: { content: JSON.stringify(data, null, 2) } },
   };
   if (gistId) {
-    return fetch(`${GITHUB_API}/gists/${gistId}`, {
+    return ghFetch(`${GITHUB_API}/gists/${gistId}`, {
       method: "PATCH",
       headers: headers(token),
       body: JSON.stringify({ files: payload.files }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.text().catch(() => "");
-          throw new Error(`上传云端失败（HTTP ${res.status}）：${body.slice(0, 200)}`);
-        }
-        return gistId;
-      });
+    }).then(async (res) => {
+      if (!res.ok) {
+        throw new Error(`上传云端失败（HTTP ${res.status}）：${res.text.slice(0, 200)}`);
+      }
+      return gistId;
+    });
   }
-  return fetch(`${GITHUB_API}/gists`, {
+  return ghFetch(`${GITHUB_API}/gists`, {
     method: "POST",
     headers: headers(token),
     body: JSON.stringify(payload),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        throw new Error(`创建云端失败（HTTP ${res.status}）：${body.slice(0, 200)}`);
-      }
-      const gist = (await res.json()) as Gist;
-      return gist.id;
-    });
+  }).then(async (res) => {
+    if (!res.ok) {
+      throw new Error(`创建云端失败（HTTP ${res.status}）：${res.text.slice(0, 200)}`);
+    }
+    const gist = JSON.parse(res.text) as Gist;
+    return gist.id;
+  });
 }
 
 export function mergeSync(local: SyncData, remote: SyncData): SyncData {

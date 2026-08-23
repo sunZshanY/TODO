@@ -31,13 +31,46 @@ function scanBalancedJson(text: string, start: number): string | null {
   return null;
 }
 
+/** 修复因输出截断导致的 JSON：补全未闭合的字符串与括号 */
+function repairJson(text: string): string {
+  let inString = false;
+  let escaped = false;
+  const stack: string[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "[" || ch === "{") {
+      stack.push(ch === "[" ? "]" : "}");
+    } else if (ch === "]" || ch === "}") {
+      stack.pop();
+    }
+  }
+  let repaired = text;
+  if (inString) repaired += '"';
+  while (stack.length > 0) repaired += stack.pop() as string;
+  return repaired;
+}
+
 export function extractJson(text: string): unknown {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   if (cleaned) {
     try {
       return JSON.parse(cleaned);
     } catch {
-      // 继续尝试从文本中提取
+      try {
+        return JSON.parse(repairJson(cleaned));
+      } catch {
+        // 继续尝试从文本中提取
+      }
     }
   }
   const match = cleaned || text;
@@ -45,11 +78,12 @@ export function extractJson(text: string): unknown {
   if (start < 0) {
     throw new Error("未在 AI 返回中找到 JSON 数据");
   }
-  const block = scanBalancedJson(match, start);
-  if (!block) {
+  const block = scanBalancedJson(match, start) ?? repairJson(match.slice(start));
+  try {
+    return JSON.parse(block);
+  } catch {
     throw new Error("AI 返回的 JSON 结构不完整");
   }
-  return JSON.parse(block);
 }
 
 function normalizeDraft(raw: unknown): ImportDraft | null {
@@ -68,8 +102,10 @@ function normalizeDraft(raw: unknown): ImportDraft | null {
   let dueDate: string | null =
     typeof o.dueDate === "string" && o.dueDate ? o.dueDate : null;
   if (dueDate) {
-    const d = new Date(dueDate);
+    const normalized = dueDate.includes("T") ? dueDate : dueDate.replace(" ", "T");
+    const d = new Date(normalized);
     if (Number.isNaN(d.getTime())) dueDate = null;
+    else dueDate = normalized;
   }
 
   const category =
@@ -134,11 +170,11 @@ export function buildOptimizeSystem(existingTasks: Task[]): string {
 输出要求：
 1. 只输出一个 JSON 数组，不要输出任何解释、注释、前后缀文字，不要用 markdown 代码块包裹。
 2. 数组每个元素与输入结构一致：
-   {"title": "任务标题", "description": "补充说明，没有则留空字符串", "priority": "high|medium|low", "dueDate": "YYYY-MM-DD 或 null", "category": "类别/清单名", "type": "schedule 或 list", "completed": true 或 false}
+   {"title": "任务标题", "description": "补充说明，没有则留空字符串", "priority": "high|medium|low", "dueDate": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm 或 null", "category": "类别/清单名", "type": "schedule 或 list", "completed": true 或 false}
 3. 保持每条任务的 completed（完成状态）不变。
 4. 优化标题：使其简短、明确、可独立执行；合并语义重复的任务；把过大或过杂的任务拆分为多个清晰子任务。
 5. 完善优先级：重要且紧急为 high，一般规划为 medium，琐碎低优先为 low。
-6. 若任务中出现相对时间（明天、后天、下周、月底等），请基于今天日期（${todayStr}）换算成具体 YYYY-MM-DD；没有明确时间的任务保持 dueDate 为 null，不要凭空编造截止日期。
+6. 若任务中出现相对时间（明天、后天、下周、月底等），请基于今天日期（${todayStr}）换算成具体 YYYY-MM-DD；若明确到几时几分，则使用 YYYY-MM-DD HH:mm 格式；没有明确时间的任务保持 dueDate 为 null，不要凭空编造截止日期。
 7. 保留并优化 category 分组；type 按内容判定：含明确日期或日程安排为 schedule，否则为 list。
 8. 避免生成与用户已有任务重复的任务，不要输出标题与下列已有任务相同或语义完全相同的任务：
 ${titles.length ? titles.join("\n") : "（当前没有已有任务）"}`;
@@ -156,8 +192,8 @@ export function buildImportSystem(existingTasks: Task[]): string {
 输出要求：
 1. 只输出一个 JSON 数组，不要输出任何解释、注释、前后缀文字，不要用 markdown 代码块包裹。
 2. 数组每个元素的字段与格式严格如下：
-   {"title": "简短明确的任务标题", "description": "补充说明，没有则留空字符串", "priority": "high|medium|low", "dueDate": "YYYY-MM-DD 或 null", "category": "所属类别/清单名，无法判断则用 默认", "type": "schedule 或 list，含明确日期或日程安排则 schedule，否则 list"}
-3. 若描述中出现"明天、后天、下周、月底"等相对时间，请基于今天日期（${todayStr}）换算成具体 YYYY-MM-DD；没有明确时间的任务 dueDate 写 null。
+   {"title": "简短明确的任务标题", "description": "补充说明，没有则留空字符串", "priority": "high|medium|low", "dueDate": "YYYY-MM-DD 或 YYYY-MM-DD HH:mm 或 null", "category": "所属类别/清单名，无法判断则用 默认", "type": "schedule 或 list，含明确日期或日程安排则 schedule，否则 list"}
+3. 若描述中出现"明天、后天、下周、月底"等相对时间，请基于今天日期（${todayStr}）换算成具体 YYYY-MM-DD；若明确到几时几分，则使用 YYYY-MM-DD HH:mm 格式；没有明确时间的任务 dueDate 写 null。
 4. 合理分配优先级：重要且紧急为 high，一般规划为 medium，琐碎低优先为 low。
 5. 合理分组：把同一主题/场景的任务归入同一 category，不明确则用 "默认"。
 6. 避免生成与用户已有任务重复的任务，不要输出标题与下列已有任务相同或语义完全相同的任务：

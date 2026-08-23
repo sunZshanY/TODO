@@ -31,6 +31,7 @@ export type SortKey = "custom" | "created" | "priority" | "due_date";
 export interface DeletedTask {
   id: string;
   deletedAt: string;
+  task?: Task;
 }
 
 export interface SyncData {
@@ -45,6 +46,7 @@ export interface SyncConfig {
   gistId: string;
   autoSync: boolean;
   intervalMinutes: number;
+  proxy?: string;
 }
 
 export type SyncStatus = "idle" | "syncing" | "success" | "error";
@@ -62,6 +64,7 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  raw?: string;
 }
 
 export interface ImportDraft {

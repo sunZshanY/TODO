@@ -10,9 +10,9 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { DeleteRegular, EditRegular } from "@fluentui/react-icons";
-import { TASK_TYPE_LABEL } from "../constants";
+import { DUE_TIME_VISIBLE_DAYS, TASK_TYPE_LABEL } from "../constants";
 import type { Priority, Task } from "../types";
-import { formatDueDate, isOverdue } from "../utils/date";
+import { dueWithinDays, formatDueDate, isOverdue } from "../utils/date";
 
 const useStyles = makeStyles({
   card: {
@@ -99,7 +99,10 @@ interface Props {
   task: Task;
   dragging: boolean;
   dragOver: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
   onToggle: (id: string, checked: boolean) => void;
+  onSelect?: (id: string, checked: boolean) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onDragStart: (id: string) => void;
@@ -112,7 +115,10 @@ export const TaskItem = memo(function TaskItem({
   task,
   dragging,
   dragOver,
+  selectMode = false,
+  selected = false,
   onToggle,
+  onSelect,
   onEdit,
   onDelete,
   onDragStart,
@@ -123,7 +129,10 @@ export const TaskItem = memo(function TaskItem({
   const styles = useStyles();
 
   const overdue = isOverdue(task.dueDate, task.completed);
-  const due = formatDueDate(task.dueDate);
+  const due = formatDueDate(
+    task.dueDate,
+    dueWithinDays(task.dueDate, DUE_TIME_VISIBLE_DAYS),
+  );
 
   return (
     <Card
@@ -141,11 +150,20 @@ export const TaskItem = memo(function TaskItem({
         onDrop(task.id);
       }}
     >
-      <Checkbox
-        checked={task.completed}
-        aria-label={task.completed ? "标记为未完成" : "标记为已完成"}
-        onChange={(_e, data) => onToggle(task.id, data.checked === true)}
-      />
+      {selectMode ? (
+        <Checkbox
+          checked={selected}
+          aria-label="选择任务"
+          title="选择任务"
+          onChange={(_e, data) => onSelect?.(task.id, data.checked === true)}
+        />
+      ) : (
+        <Checkbox
+          checked={task.completed}
+          aria-label={task.completed ? "标记为未完成" : "标记为已完成"}
+          onChange={(_e, data) => onToggle(task.id, data.checked === true)}
+        />
+      )}
 
       <div className={styles.content} onClick={() => onEdit(task)}>
         <Text

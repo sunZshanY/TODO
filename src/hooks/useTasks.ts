@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   DeletedTask,
   SyncData,
@@ -18,6 +18,10 @@ import { uid } from "../utils/id";
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [deleted, setDeleted] = useState<DeletedTask[]>(() => loadDeletedTasks());
+  const tasksRef = useRef(tasks);
+  useEffect(() => {
+    tasksRef.current = tasks;
+  }, [tasks]);
 
   useEffect(() => {
     saveTasks(tasks);
@@ -75,8 +79,29 @@ export function useTasks() {
 
   const deleteTask = useCallback((id: string) => {
     const now = new Date().toISOString();
+    const target = tasksRef.current.find((t) => t.id === id);
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    setDeleted((prev) => [...prev, { id, deletedAt: now }]);
+    if (target) {
+      setDeleted((prev) => [...prev, { id, deletedAt: now, task: target }]);
+    }
+  }, []);
+
+  const restoreDeleted = useCallback((record: DeletedTask) => {
+    if (!record.task) return;
+    const now = new Date().toISOString();
+    setDeleted((prev) => prev.filter((d) => d.id !== record.id));
+    setTasks((prev) => [
+      { ...(record.task as Task), updatedAt: now },
+      ...prev,
+    ]);
+  }, []);
+
+  const purgeDeleted = useCallback((id: string) => {
+    setDeleted((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const clearDeleted = useCallback(() => {
+    setDeleted([]);
   }, []);
 
   const moveTask = useCallback((fromId: string, toId: string) => {
@@ -109,6 +134,9 @@ export function useTasks() {
     updateTask,
     toggleTask,
     deleteTask,
+    restoreDeleted,
+    purgeDeleted,
+    clearDeleted,
     moveTask,
     importTasks,
     applySyncData,

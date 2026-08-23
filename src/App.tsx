@@ -5,6 +5,7 @@ import {
   Tab,
   TabList,
   Text,
+  Toaster,
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
@@ -16,6 +17,7 @@ import { TimeCard } from "./components/TimeCard";
 import { WeatherCard } from "./components/WeatherCard";
 import { SyncPanel } from "./components/SyncPanel";
 import { TaskList } from "./components/TaskList";
+import { useReminders } from "./hooks/useReminders.tsx";
 import { useTasks } from "./hooks/useTasks";
 import {
   THEME_MODE_LABEL,
@@ -138,10 +140,15 @@ export default function App() {
     updateTask,
     toggleTask,
     deleteTask,
+    restoreDeleted,
+    purgeDeleted,
+    clearDeleted,
     moveTask,
     importTasks,
     applySyncData,
   } = useTasks();
+
+  useReminders(tasks);
 
   useEffect(
     () => subscribeSystemTheme(() => setSystemDark(systemPrefersDark())),
@@ -160,6 +167,7 @@ export default function App() {
 
   return (
     <FluentProvider theme={dark ? appDarkTheme : appLightTheme}>
+      <Toaster position="top-end" />
       <div className={styles.root}>
         {isMobile && (
           <div className={styles.mobileTabBar}>
@@ -199,11 +207,15 @@ export default function App() {
         >
           <TaskList
             tasks={tasks}
+            deleted={deleted}
             onAdd={addTask}
             onAddMany={addTasks}
             onUpdate={updateTask}
             onToggle={toggleTask}
             onDelete={deleteTask}
+            onRestoreDeleted={restoreDeleted}
+            onPurgeDeleted={purgeDeleted}
+            onClearDeleted={clearDeleted}
             onMove={moveTask}
             onImport={importTasks}
           />

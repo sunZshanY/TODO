@@ -48,19 +48,35 @@ export function timeAgo(ts: number): string {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 }
 
-/** 将 ISO 日期字符串格式化为 yyyy-MM-dd */
-export function formatDueDate(iso: string | null): string | null {
+/** 将 ISO 日期字符串格式化为 yyyy-MM-dd，showTime 且含时间则为 yyyy-MM-dd HH:mm */
+export function formatDueDate(iso: string | null, showTime = true): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return showTime && /T\d{2}:\d{2}/.test(iso)
+    ? `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    : date;
 }
 
-/** 判断任务是否已逾期（未完成且截止日期早于今天） */
+/** 判断截止时间是否落在今天起的 limitDays 天窗口内（含今天），用于限制时分显示 */
+export function dueWithinDays(iso: string | null, limitDays: number): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return false;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + limitDays);
+  return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+}
+
+/** 判断任务是否已逾期（未完成且已过截止时间） */
 export function isOverdue(dueDate: string | null, completed: boolean): boolean {
   if (completed || !dueDate) return false;
   const due = new Date(dueDate).getTime();
   if (Number.isNaN(due)) return false;
+  if (/T\d{2}:\d{2}/.test(dueDate)) return due < Date.now();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   return due < todayStart.getTime();

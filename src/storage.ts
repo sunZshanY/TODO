@@ -97,7 +97,11 @@ export function parseTasks(raw: string): Task[] {
 export function loadDeletedTasks(): DeletedTask[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.deleted);
-    return raw ? (JSON.parse(raw) as DeletedTask[]) : [];
+    return raw
+      ? (JSON.parse(raw) as DeletedTask[])
+          .filter((d) => d && typeof d === "object")
+          .map((d) => (d.task ? { ...d, task: normalizeTask(d.task) } : d))
+      : [];
   } catch {
     return [];
   }

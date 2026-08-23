@@ -30,7 +30,16 @@ export function useSync(
   const saveConfig = useCallback((next: SyncConfig) => {
     setConfig(next);
     saveSyncConfig(next);
+    if (typeof window.setProxy === "function") {
+      void window.setProxy(next.proxy ?? "");
+    }
   }, []);
+
+  useEffect(() => {
+    if (typeof window.setProxy === "function") {
+      void window.setProxy(config.proxy ?? "");
+    }
+  }, [config.proxy]);
 
   const buildLocal = useCallback(
     (tasks: Task[], deleted: DeletedTask[]): SyncData => ({

@@ -52,6 +52,12 @@ const EMPTY: TaskInput = {
   type: "list",
 };
 
+/** 将存储格式转换为 datetime-local 输入框所需的值 */
+function toDateTimeInput(value: string | null): string {
+  if (!value) return "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00` : value;
+}
+
 export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
   const styles = useStyles();
   const [form, setForm] = useState<TaskInput>(EMPTY);
@@ -161,10 +167,10 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
                   </RadioGroup>
                 </Field>
 
-                <Field label="截止日期">
+                <Field label="截止日期与时间">
                   <Input
-                    type="date"
-                    value={form.dueDate ?? ""}
+                    type="datetime-local"
+                    value={toDateTimeInput(form.dueDate)}
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
