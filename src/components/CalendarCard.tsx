@@ -280,6 +280,7 @@ export function CalendarCard({ tasks, onToggle }: Props) {
   const [sy, sm, sd] = selected.split("-").map(Number);
   const selWeekday = new Date(sy, sm - 1, sd).getDay();
   const weekdayNames = ["日", "一", "二", "三", "四", "五", "六"];
+  const headerWeekdays = ["一", "二", "三", "四", "五", "六", "日"];
 
   const legend: { swatch?: string; label: string }[] = [
     { swatch: "green", label: "全部完成" },
@@ -341,7 +342,7 @@ export function CalendarCard({ tasks, onToggle }: Props) {
       {open && (
         <>
           <div className={styles.weekdayRow}>
-            {weekdayNames.map((w, i) => (
+            {headerWeekdays.map((w, i) => (
               <Text key={i} size={100} className={styles.weekday}>
                 {w}
               </Text>
@@ -410,7 +411,7 @@ export function CalendarCard({ tasks, onToggle }: Props) {
           <div className={styles.detail}>
             <div className={styles.detailHeader}>
               <Text size={200} weight="semibold">
-                {view.y}年{view.m + 1}月 {Number(selected.slice(8))}日 星期
+                {sy}年{sm}月 {sd}日 星期
                 {weekdayNames[selWeekday]}
               </Text>
               {selected === today && (

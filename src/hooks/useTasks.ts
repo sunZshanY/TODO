@@ -14,7 +14,7 @@ import {
   saveTasks,
 } from "../storage";
 import { uid } from "../utils/id";
-import { addDaysToDue, todayKey } from "../utils/date";
+import { dueDateKey, nextRepeatDue, todayKey } from "../utils/date";
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -85,8 +85,9 @@ export function useTasks() {
             ? Math.floor(t.repeatEveryDays)
             : 0;
         if (repeatDays > 0 && t.dueDate) {
-          const next = addDaysToDue(t.dueDate, repeatDays);
-          if (t.repeatEndsAt && next > t.repeatEndsAt) {
+          const next = nextRepeatDue(t.dueDate, repeatDays);
+          const nextKey = dueDateKey(next);
+          if (t.repeatEndsAt && nextKey && nextKey > t.repeatEndsAt) {
             return { ...t, completed: true, completedDates, updatedAt };
           }
           return { ...t, completed: false, completedDates, dueDate: next, updatedAt };

@@ -111,3 +111,16 @@ export function addDaysToDue(dueDate: string, days: number): string {
     ? `${base}T${pad(d.getHours())}:${pad(d.getMinutes())}`
     : base;
 }
+
+/** 计算重复任务的下一次截止时间：从当前截止时间起每次顺延 everyDays 天，
+ *  直到落在今天之后（避免逾期多天后完成后仍回到过去）。 */
+export function nextRepeatDue(dueDate: string, everyDays: number): string {
+  let next = addDaysToDue(dueDate, everyDays);
+  const today = todayKey();
+  for (let i = 0; i < 4000; i++) {
+    const key = dueDateKey(next);
+    if (!key || key > today) break;
+    next = addDaysToDue(next, everyDays);
+  }
+  return next;
+}

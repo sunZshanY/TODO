@@ -99,10 +99,12 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
       setError("设置重复后请填写截止日期（作为首次重复日期）");
       return;
     }
+    const dueDate = form.dueDate?.replace(/T00:00$/, "") || null;
     onSave({
       ...form,
       title,
       description: form.description.trim(),
+      dueDate,
       repeatEveryDays: repeatDays,
       repeatEndsAt: repeatDays ? form.repeatEndsAt || null : null,
     });
