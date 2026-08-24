@@ -50,6 +50,8 @@ const EMPTY: TaskInput = {
   dueDate: null,
   category: "默认",
   type: "list",
+  repeatEveryDays: null,
+  repeatEndsAt: null,
 };
 
 /** 将存储格式转换为 datetime-local 输入框所需的值 */
@@ -74,6 +76,8 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
               dueDate: task.dueDate,
               category: task.category,
               type: task.type,
+              repeatEveryDays: task.repeatEveryDays ?? null,
+              repeatEndsAt: task.repeatEndsAt ?? null,
             }
           : { ...EMPTY },
       );
@@ -87,7 +91,21 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
       setError("任务标题不能为空");
       return;
     }
-    onSave({ ...form, title, description: form.description.trim() });
+    const repeatDays =
+      form.repeatEveryDays && form.repeatEveryDays > 0
+        ? Math.floor(form.repeatEveryDays)
+        : null;
+    if (repeatDays && !form.dueDate) {
+      setError("设置重复后请填写截止日期（作为首次重复日期）");
+      return;
+    }
+    onSave({
+      ...form,
+      title,
+      description: form.description.trim(),
+      repeatEveryDays: repeatDays,
+      repeatEndsAt: repeatDays ? form.repeatEndsAt || null : null,
+    });
     onClose();
   };
 
@@ -175,6 +193,49 @@ export function TaskFormDialog({ open, task, onClose, onSave }: Props) {
                       setForm((f) => ({
                         ...f,
                         dueDate: e.target.value || null,
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+
+              <div className={styles.row}>
+                <Field
+                  label="重复间隔（天）"
+                  hint="留空或 0 表示不重复，完成任务后自动顺延到下一个日期"
+                >
+                  <Input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={
+                      form.repeatEveryDays
+                        ? String(form.repeatEveryDays)
+                        : ""
+                    }
+                    placeholder="例如：1（每天）/ 7（每周）"
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const n = v ? Number(v) : null;
+                      setForm((f) => ({
+                        ...f,
+                        repeatEveryDays:
+                          n !== null && Number.isFinite(n) ? Math.floor(n) : null,
+                      }));
+                    }}
+                  />
+                </Field>
+                <Field
+                  label="重复结束日期"
+                  hint="可选，到该日期后不再重复"
+                >
+                  <Input
+                    type="date"
+                    value={form.repeatEndsAt ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        repeatEndsAt: e.target.value || null,
                       }))
                     }
                   />

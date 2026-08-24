@@ -15,6 +15,7 @@ import {
 } from "@fluentui/react-icons";
 import { TimeCard } from "./components/TimeCard";
 import { WeatherCard } from "./components/WeatherCard";
+import { CalendarCard } from "./components/CalendarCard";
 import { SyncPanel } from "./components/SyncPanel";
 import { TaskList } from "./components/TaskList";
 import { useReminders } from "./hooks/useReminders.tsx";
@@ -185,6 +186,7 @@ export default function App() {
         >
           <TimeCard />
           <WeatherCard />
+          <CalendarCard tasks={tasks} onToggle={toggleTask} />
           <Suspense fallback={<div className={styles.aiFallback}>AI 助手加载中...</div>}>
             <AiPanel tasks={tasks} onImportTasks={addTasks} />
           </Suspense>

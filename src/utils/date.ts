@@ -81,3 +81,33 @@ export function isOverdue(dueDate: string | null, completed: boolean): boolean {
   todayStart.setHours(0, 0, 0, 0);
   return due < todayStart.getTime();
 }
+
+/** 将 Date 转为本地 YYYY-MM-DD */
+export function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** 今天的 YYYY-MM-DD */
+export function todayKey(): string {
+  return dateKey(new Date());
+}
+
+/** 从 ISO 截止时间中提取本地 YYYY-MM-DD（避免时区偏移，兼容 YYYY-MM-DD 与 YYYY-MM-DDTHH:mm） */
+export function dueDateKey(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return dateKey(d);
+}
+
+/** 将截止时间向后推移 days 天，保留原有时分（若存在） */
+export function addDaysToDue(dueDate: string, days: number): string {
+  const d = new Date(dueDate);
+  d.setDate(d.getDate() + days);
+  const base = dateKey(d);
+  return /T\d{2}:\d{2}/.test(dueDate)
+    ? `${base}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+    : base;
+}

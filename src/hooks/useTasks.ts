@@ -14,6 +14,7 @@ import {
   saveTasks,
 } from "../storage";
 import { uid } from "../utils/id";
+import { addDaysToDue, todayKey } from "../utils/date";
 
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -69,11 +70,29 @@ export function useTasks() {
 
   const toggleTask = useCallback((id: string) => {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, completed: !t.completed, updatedAt: new Date().toISOString() }
-          : t,
-      ),
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const updatedAt = new Date().toISOString();
+        if (t.completed) {
+          return { ...t, completed: false, updatedAt };
+        }
+        const today = todayKey();
+        const completedDates = Array.from(
+          new Set([...(t.completedDates ?? []), today]),
+        );
+        const repeatDays =
+          typeof t.repeatEveryDays === "number" && t.repeatEveryDays > 0
+            ? Math.floor(t.repeatEveryDays)
+            : 0;
+        if (repeatDays > 0 && t.dueDate) {
+          const next = addDaysToDue(t.dueDate, repeatDays);
+          if (t.repeatEndsAt && next > t.repeatEndsAt) {
+            return { ...t, completed: true, completedDates, updatedAt };
+          }
+          return { ...t, completed: false, completedDates, dueDate: next, updatedAt };
+        }
+        return { ...t, completed: true, completedDates, updatedAt };
+      }),
     );
   }, []);
 

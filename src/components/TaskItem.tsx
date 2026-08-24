@@ -211,6 +211,12 @@ export const TaskItem = memo(function TaskItem({
               {overdue ? " ⚠️ 已逾期" : ""}
             </Text>
           )}
+          {task.repeatEveryDays && task.repeatEveryDays > 0 && (
+            <Badge appearance="tint" color="informative" size="small">
+              🔁 每{task.repeatEveryDays}天
+              {task.repeatEndsAt ? ` · ${task.repeatEndsAt}止` : ""}
+            </Badge>
+          )}
         </div>
       </div>
 

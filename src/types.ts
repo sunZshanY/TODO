@@ -13,12 +13,21 @@ export interface Task {
   type: TaskType;
   createdAt: string;
   updatedAt: string;
+  /** 重复间隔（天），>0 表示按天重复，null/0 表示不重复 */
+  repeatEveryDays?: number | null;
+  /** 重复结束日期（YYYY-MM-DD），为空表示一直重复 */
+  repeatEndsAt?: string | null;
+  /** 已完成的日期列表（YYYY-MM-DD），用于日程表图例展示每日完成内容 */
+  completedDates?: string[];
 }
 
 export type TaskInput = Pick<
   Task,
   "title" | "description" | "priority" | "dueDate" | "category" | "type"
->;
+> & {
+  repeatEveryDays?: number | null;
+  repeatEndsAt?: string | null;
+};
 
 export interface TaskSeed extends TaskInput {
   completed?: boolean;
