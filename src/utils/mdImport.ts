@@ -62,11 +62,23 @@ function looksScheduled(text: string): boolean {
  *  - @2026-08-21 [HH:mm[:ss]]
  *  - 2026-08-21 / 2026/8/21 [ HH:mm ]
  *  - 仅时间 HH:mm（缺日期时按今天处理）
+ * 日期与时间可分别出现在同一行的不同位置（如「会议 2026-08-24 14:30」或「14:30 会议 @2026-08-24」），
+ * 会合并为同一截止时间。
  * 返回 ISO 字符串（可能含 T 时分）、是否含有日期，以及命中的原文（用于剔除标题）。
  */
 function extractInlineDueDate(
   text: string,
-): { dueDate: string | null; hasDate: boolean; matched: string | null } {
+): {
+  dueDate: string | null;
+  hasDate: boolean;
+  matched: string | null;
+  timeMatched: string | null;
+} {
+  let datePart: string | null = null;
+  let timePart: string | null = null;
+  let dateMatched = "";
+  let timeMatched = "";
+
   const dt = text.match(
     /@?(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
   );
@@ -74,77 +86,97 @@ function extractInlineDueDate(
     const mo = Number(dt[2]);
     const d = Number(dt[3]);
     if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
-      const date = `${dt[1]}-${pad(mo)}-${pad(d)}`;
-      const time = dt[4] !== undefined ? `${pad(Number(dt[4]))}:${dt[5]}` : null;
-      return {
-        dueDate: time ? `${date}T${time}` : date,
-        hasDate: true,
-        matched: dt[0],
-      };
+      datePart = `${dt[1]}-${pad(mo)}-${pad(d)}`;
+      dateMatched = dt[0];
+      if (dt[4] !== undefined) {
+        timePart = `${pad(Number(dt[4]))}:${pad(Number(dt[5]))}`;
+      }
     }
   }
-  const t = text.match(/\b(\d{1,2}):(\d{2})\b/);
-  if (t) {
-    const now = new Date();
-    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+
+  if (!timePart) {
+    const tm = text.match(/\b(\d{1,2}):(\d{2})\b/);
+    if (tm) {
+      timePart = `${pad(Number(tm[1]))}:${tm[2]}`;
+      timeMatched = tm[0];
+    }
+  }
+
+  if (!datePart && !timePart) {
+    return { dueDate: null, hasDate: false, matched: null, timeMatched: null };
+  }
+
+  const now = new Date();
+  if (!datePart) {
+    datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
       now.getDate(),
     )}`;
-    return {
-      dueDate: `${date}T${pad(Number(t[1]))}:${t[2]}`,
-      hasDate: true,
-      matched: t[0],
-    };
   }
-  return { dueDate: null, hasDate: false, matched: null };
+  return {
+    dueDate: timePart ? `${datePart}T${timePart}` : datePart,
+    hasDate: true,
+    matched: dateMatched || timeMatched || null,
+    timeMatched: timeMatched || null,
+  };
 }
 
-/** 从表格数据行各单元格提取截止时间：优先含年份日期，其次月-日，再次单独时分（按今天）。 */
+/** 从表格数据行各单元格提取截止时间：优先含年份日期，其次月-日，再次单独时分（按今天）。
+ * 日期可位于任意单元格，时间也可出现在任意单元格（含「14:00-15:00」「时间 14:00」等形式），
+ * 二者会合并为同一截止时间。
+ */
 function tableRowDueDate(
   cells: string[],
 ): { dueDate: string | null; hasDate: boolean } {
   let datePart: string | null = null; // yyyy-mm-dd
   let timePart: string | null = null; // HH:mm
   for (const cell of cells) {
-    const ymd = cell.match(
-      /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/,
-    );
-    if (ymd) {
-      const mo = Number(ymd[2]);
-      const d = Number(ymd[3]);
-      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
-        datePart = `${ymd[1]}-${pad(mo)}-${pad(d)}`;
-        if (ymd[4] !== undefined) timePart = `${pad(Number(ymd[4]))}:${ymd[5]}`;
-        continue;
+    if (!datePart) {
+      const ymd = cell.match(
+        /(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/,
+      );
+      if (ymd) {
+        const mo = Number(ymd[2]);
+        const d = Number(ymd[3]);
+        if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+          datePart = `${ymd[1]}-${pad(mo)}-${pad(d)}`;
+          if (ymd[4] !== undefined) {
+            timePart = `${pad(Number(ymd[4]))}:${pad(Number(ymd[5]))}`;
+          }
+        }
+      }
+      if (!datePart) {
+        const md = cell.match(/\b(\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?/);
+        if (md) {
+          const mo = Number(md[1]);
+          const d = Number(md[2]);
+          if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+            const y = new Date().getFullYear();
+            datePart = `${y}-${pad(mo)}-${pad(d)}`;
+            if (md[3] !== undefined) {
+              timePart = `${pad(Number(md[3]))}:${pad(Number(md[4]))}`;
+            }
+          }
+        }
       }
     }
-    const md = cell.match(/^(\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/);
-    if (md) {
-      const mo = Number(md[1]);
-      const d = Number(md[2]);
-      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && !datePart) {
-        const y = new Date().getFullYear();
-        datePart = `${y}-${pad(mo)}-${pad(d)}`;
-        if (md[3] !== undefined) timePart = `${pad(Number(md[3]))}:${md[4]}`;
-        continue;
-      }
-    }
-    const tm = cell.match(/^(\d{1,2}):(\d{2})$/);
-    if (tm && !timePart) {
-      timePart = `${pad(Number(tm[1]))}:${tm[2]}`;
+    if (!timePart) {
+      const tm = cell.match(/\b(\d{1,2}):(\d{2})\b/);
+      if (tm) timePart = `${pad(Number(tm[1]))}:${tm[2]}`;
     }
   }
-  if (datePart) {
+  if (datePart || timePart) {
+    const date =
+      datePart ??
+      (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+          now.getDate(),
+        )}`;
+      })();
     return {
-      dueDate: timePart ? `${datePart}T${timePart}` : datePart,
+      dueDate: timePart ? `${date}T${timePart}` : date,
       hasDate: true,
     };
-  }
-  if (timePart) {
-    const now = new Date();
-    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-      now.getDate(),
-    )}`;
-    return { dueDate: `${date}T${timePart}`, hasDate: true };
   }
   return { dueDate: null, hasDate: false };
 }
@@ -169,9 +201,13 @@ function parseTaskLine(text: string): ParsedTask | null {
   if (due.dueDate) {
     dueDate = due.dueDate;
     hasDate = due.hasDate;
-    if (due.matched) {
-      title = title.replace(due.matched, "").replace(/\s{2,}/g, " ").trim();
+    let cleaned = title;
+    if (due.matched) cleaned = cleaned.replace(due.matched, " ");
+    if (due.timeMatched && due.timeMatched !== due.matched) {
+      cleaned = cleaned.replace(due.timeMatched, " ");
     }
+    cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+    if (cleaned) title = cleaned;
   }
 
   const descMatch = title.match(/\/([^/]+)\//);

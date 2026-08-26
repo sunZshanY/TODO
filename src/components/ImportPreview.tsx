@@ -70,7 +70,7 @@ const useStyles = makeStyles({
     flexShrink: 0,
   },
   dateInput: {
-    width: "130px",
+    width: "190px",
     flexShrink: 0,
   },
   footer: {
@@ -101,6 +101,12 @@ export function ImportPreview({ drafts, onImport }: Props) {
     setItems((prev) =>
       prev.map((it, i) => (i === index ? { ...it, ...patch } : it)),
     );
+  };
+
+  /** 将存储的截止时间转为 datetime-local 输入框值（含时分），无时间则补 T00:00 */
+  const toPreviewDateTime = (iso: string | null): string => {
+    if (!iso) return "";
+    return /T\d{2}:\d{2}/.test(iso) ? iso : `${iso}T00:00`;
   };
 
   const toggleAll = () => {
@@ -192,10 +198,15 @@ export function ImportPreview({ drafts, onImport }: Props) {
               <Input
                 className={styles.dateInput}
                 size="small"
-                type="date"
-                value={it.dueDate ?? ""}
+                type="datetime-local"
+                step={60}
+                value={toPreviewDateTime(it.dueDate)}
                 onChange={(e) =>
-                  updateItem(i, { dueDate: e.target.value || null })
+                  updateItem(i, {
+                    dueDate: e.target.value
+                      ? e.target.value.replace(/T00:00$/, "") || null
+                      : null,
+                  })
                 }
               />
             </div>
