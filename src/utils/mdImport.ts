@@ -1,4 +1,5 @@
 import { DEFAULT_CATEGORY } from "../constants";
+import { pad } from "./date";
 import type { ImportDraft, Priority, TaskType } from "../types";
 
 const TYPE_KEYWORDS = /日程|安排|时间表|排期|计划|calendar/i;
@@ -57,6 +58,97 @@ function looksScheduled(text: string): boolean {
   );
 }
 
+/** 在文本中查找内联截止时间，支持：
+ *  - @2026-08-21 [HH:mm[:ss]]
+ *  - 2026-08-21 / 2026/8/21 [ HH:mm ]
+ *  - 仅时间 HH:mm（缺日期时按今天处理）
+ * 返回 ISO 字符串（可能含 T 时分）、是否含有日期，以及命中的原文（用于剔除标题）。
+ */
+function extractInlineDueDate(
+  text: string,
+): { dueDate: string | null; hasDate: boolean; matched: string | null } {
+  const dt = text.match(
+    /@?(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
+  );
+  if (dt) {
+    const mo = Number(dt[2]);
+    const d = Number(dt[3]);
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const date = `${dt[1]}-${pad(mo)}-${pad(d)}`;
+      const time = dt[4] !== undefined ? `${pad(Number(dt[4]))}:${dt[5]}` : null;
+      return {
+        dueDate: time ? `${date}T${time}` : date,
+        hasDate: true,
+        matched: dt[0],
+      };
+    }
+  }
+  const t = text.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (t) {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate(),
+    )}`;
+    return {
+      dueDate: `${date}T${pad(Number(t[1]))}:${t[2]}`,
+      hasDate: true,
+      matched: t[0],
+    };
+  }
+  return { dueDate: null, hasDate: false, matched: null };
+}
+
+/** 从表格数据行各单元格提取截止时间：优先含年份日期，其次月-日，再次单独时分（按今天）。 */
+function tableRowDueDate(
+  cells: string[],
+): { dueDate: string | null; hasDate: boolean } {
+  let datePart: string | null = null; // yyyy-mm-dd
+  let timePart: string | null = null; // HH:mm
+  for (const cell of cells) {
+    const ymd = cell.match(
+      /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/,
+    );
+    if (ymd) {
+      const mo = Number(ymd[2]);
+      const d = Number(ymd[3]);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        datePart = `${ymd[1]}-${pad(mo)}-${pad(d)}`;
+        if (ymd[4] !== undefined) timePart = `${pad(Number(ymd[4]))}:${ymd[5]}`;
+        continue;
+      }
+    }
+    const md = cell.match(/^(\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{2}))?$/);
+    if (md) {
+      const mo = Number(md[1]);
+      const d = Number(md[2]);
+      if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 && !datePart) {
+        const y = new Date().getFullYear();
+        datePart = `${y}-${pad(mo)}-${pad(d)}`;
+        if (md[3] !== undefined) timePart = `${pad(Number(md[3]))}:${md[4]}`;
+        continue;
+      }
+    }
+    const tm = cell.match(/^(\d{1,2}):(\d{2})$/);
+    if (tm && !timePart) {
+      timePart = `${pad(Number(tm[1]))}:${tm[2]}`;
+    }
+  }
+  if (datePart) {
+    return {
+      dueDate: timePart ? `${datePart}T${timePart}` : datePart,
+      hasDate: true,
+    };
+  }
+  if (timePart) {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+      now.getDate(),
+    )}`;
+    return { dueDate: `${date}T${timePart}`, hasDate: true };
+  }
+  return { dueDate: null, hasDate: false };
+}
+
 /** 解析单行复选框任务内容：标题 + 内联标记 [优先级] @日期 /说明/ */
 function parseTaskLine(text: string): ParsedTask | null {
   let title = text.trim();
@@ -73,21 +165,13 @@ function parseTaskLine(text: string): ParsedTask | null {
     title = title.replace(/\[(高|中|低)\]/g, "").trim();
   }
 
-  const dateMatch = title.match(/@(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (dateMatch) {
-    const y = dateMatch[1];
-    const m = dateMatch[2].padStart(2, "0");
-    const d = dateMatch[3].padStart(2, "0");
-    if (
-      Number(m) >= 1 &&
-      Number(m) <= 12 &&
-      Number(d) >= 1 &&
-      Number(d) <= 31
-    ) {
-      dueDate = `${y}-${m}-${d}`;
-      hasDate = true;
+  const due = extractInlineDueDate(title);
+  if (due.dueDate) {
+    dueDate = due.dueDate;
+    hasDate = due.hasDate;
+    if (due.matched) {
+      title = title.replace(due.matched, "").replace(/\s{2,}/g, " ").trim();
     }
-    title = title.replace(/@(\d{4})-(\d{1,2})-(\d{1,2})/g, "").trim();
   }
 
   const descMatch = title.match(/\/([^/]+)\//);
@@ -146,16 +230,17 @@ function handleTableBlock(
     if (/^[❌✅☐□○●—\-·\s*]+$/.test(title)) continue;
 
     const context = cells.slice(0, -1).join(" · ");
+    const due = tableRowDueDate(cells);
     const group = getGroup(groups, category);
     group.drafts.push({
       title,
       description: context,
       priority: "medium",
-      dueDate: null,
+      dueDate: due.dueDate,
       category,
       type: "list",
     });
-    if (cells.some(looksScheduled)) group.hasDate = true;
+    if (due.hasDate || cells.some(looksScheduled)) group.hasDate = true;
   }
 }
 
